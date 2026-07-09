@@ -1,0 +1,106 @@
+import 'package:flutter/material.dart';
+
+IconData getCategoryIcon(String iconName) {
+  switch (iconName) {
+    // Income
+    case 'payments':
+      return Icons.payments;
+    case 'laptop_mac':
+      return Icons.laptop_mac;
+    case 'business_center':
+      return Icons.business_center;
+    case 'trending_up':
+      return Icons.trending_up;
+    case 'workspace_premium':
+      return Icons.workspace_premium;
+    case 'computer':
+      return Icons.computer;
+    case 'card_giftcard':
+      return Icons.card_giftcard;
+    case 'home_work':
+      return Icons.home_work;
+    case 'account_balance':
+      return Icons.account_balance;
+    case 'assignment_return':
+      return Icons.assignment_return;
+    case 'savings':
+      return Icons.savings;
+
+    // Expenses
+    case 'home':
+      return Icons.home;
+    case 'electric_bolt':
+      return Icons.electric_bolt;
+    case 'water_drop':
+      return Icons.water_drop;
+    case 'local_fire_department':
+      return Icons.local_fire_department;
+    case 'delete_outline':
+      return Icons.delete_outline;
+    case 'shopping_cart':
+      return Icons.shopping_cart;
+    case 'smartphone':
+      return Icons.smartphone;
+    case 'wifi':
+      return Icons.wifi;
+    case 'tv':
+      return Icons.tv;
+    case 'cleaning_services':
+      return Icons.cleaning_services;
+    case 'directions_bus':
+      return Icons.directions_bus;
+    case 'local_gas_station':
+      return Icons.local_gas_station;
+    case 'directions_car':
+      return Icons.directions_car;
+    case 'local_parking':
+      return Icons.local_parking;
+    case 'school':
+      return Icons.school;
+    case 'menu_book':
+      return Icons.menu_book;
+    case 'sports_soccer':
+      return Icons.sports_soccer;
+    case 'medical_services':
+      return Icons.medical_services;
+    case 'medication':
+      return Icons.medication;
+    case 'health_and_safety':
+      return Icons.health_and_safety;
+    case 'masks':
+      return Icons.masks;
+    case 'checkroom':
+      return Icons.checkroom;
+    case 'content_cut':
+      return Icons.content_cut;
+    case 'fitness_center':
+      return Icons.fitness_center;
+    case 'restaurant':
+      return Icons.restaurant;
+    case 'movie':
+      return Icons.movie;
+    case 'flight':
+      return Icons.flight;
+    case 'palette':
+      return Icons.palette;
+    case 'credit_card':
+      return Icons.credit_card;
+
+    // Other
+    case 'card_giftcard_alt':
+    case 'gifts':
+      return Icons.card_giftcard;
+    case 'warning_amber':
+      return Icons.warning_amber;
+    case 'subscriptions':
+      return Icons.subscriptions;
+    case 'account_balance_alt':
+    case 'bank_charges':
+      return Icons.account_balance;
+    case 'savings_alt':
+      return Icons.savings;
+
+    default:
+      return Icons.category;
+  }
+}
