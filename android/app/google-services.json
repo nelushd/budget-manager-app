@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "606960119554",
+    "project_id": "budget-manager-app-fac81",
+    "storage_bucket": "budget-manager-app-fac81.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:606960119554:android:c565982f1de3b0079d5c1b",
+        "android_client_info": {
+          "package_name": "com.example.budget_manager_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjUCPzlYwASeFkAP8inxgwGovlb1qnMjI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

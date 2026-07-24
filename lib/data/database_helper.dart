@@ -58,7 +58,7 @@ class DatabaseHelper {
         balance REAL NOT NULL,
         isDefault INTEGER NOT NULL,
         isIncluded INTEGER NOT NULL,
-        createdAt INTEGER NOT NULL
+        createdAt INTEGER NOT NULL 
       )
     ''');
 

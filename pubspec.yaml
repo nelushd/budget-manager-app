@@ -38,6 +38,8 @@ dependencies:
   path: ^1.9.1
   intl: ^0.20.3
   image_picker: ^1.2.2
+  firebase_core: ^4.12.1
+  cloud_firestore: ^6.7.1
 
 dev_dependencies:
   flutter_test:
