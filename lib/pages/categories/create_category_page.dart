@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/database_helper.dart';
+import '../../services/firestore_service.dart';
 import '../../models/category_model.dart';
 import '../../utils/category_icon.dart';
 
@@ -17,6 +17,7 @@ class CreateCategoryPage extends StatefulWidget {
 }
 
 class _CreateCategoryPageState extends State<CreateCategoryPage> {
+  final FirestoreService firestoreService = FirestoreService.instance;
   final nameController = TextEditingController();
 
   late String type;
@@ -93,7 +94,7 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );
 
-    await DatabaseHelper.instance.insertCategory(category);
+    await firestoreService.addCategory(category);
 
     if (!mounted) return;
     Navigator.pop(context, category);

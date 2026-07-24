@@ -1,5 +1,4 @@
-import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/account_model.dart';
 import '../models/category_model.dart';
@@ -8,249 +7,274 @@ import '../models/transaction_model.dart';
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
 
-  static Database? _database;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  static const String _accountsCollection = 'accounts';
+  static const String _categoriesCollection = 'categories';
+  static const String _transactionsCollection = 'transactions';
+  static const String _metaCollection = '_meta';
+  static const String _configDocId = 'config';
+  static const String _countersDocId = 'counters';
 
   DatabaseHelper._init();
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
+  CollectionReference<Map<String, dynamic>> get _accountsRef =>
+      _firestore.collection(_accountsCollection);
 
-    _database = await _initDB('budget_app.db');
-    return _database!;
-  }
+  CollectionReference<Map<String, dynamic>> get _categoriesRef =>
+      _firestore.collection(_categoriesCollection);
 
-  Future<Database> _initDB(String fileName) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, fileName);
+  CollectionReference<Map<String, dynamic>> get _transactionsRef =>
+      _firestore.collection(_transactionsCollection);
 
-    return await openDatabase(
-      path,
-      version: 2,
-      onCreate: _createDB,
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          // migrate categories table: drop and recreate with iconName
-          await db.execute('DROP TABLE IF EXISTS categories');
-          await db.execute('''
-      CREATE TABLE categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        iconName TEXT NOT NULL,
-        isDefault INTEGER NOT NULL,
-        createdAt INTEGER NOT NULL
-      )
-    ''');
+  DocumentReference<Map<String, dynamic>> get _configRef =>
+      _firestore.collection(_metaCollection).doc(_configDocId);
 
-          // re-insert default categories
-          await _insertDefaultData(db);
-        }
-      },
-    );
-  }
+  DocumentReference<Map<String, dynamic>> get _countersRef =>
+      _firestore.collection(_metaCollection).doc(_countersDocId);
 
-  Future<void> _createDB(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE accounts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        currency TEXT NOT NULL,
-        balance REAL NOT NULL,
-        isDefault INTEGER NOT NULL,
-        isIncluded INTEGER NOT NULL,
-        createdAt INTEGER NOT NULL 
-      )
-    ''');
+  Future<void> _ensureSeeded() async {
+    await _firestore.runTransaction((transaction) async {
+      final configSnapshot = await transaction.get(_configRef);
+      final configData = configSnapshot.data();
 
-    await db.execute('''
-      CREATE TABLE categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        iconName TEXT NOT NULL,
-        isDefault INTEGER NOT NULL,
-        createdAt INTEGER NOT NULL
-      )
-    ''');
+      if (configData?['seeded'] == true) {
+        return;
+      }
 
-    await db.execute('''
-      CREATE TABLE transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        amount REAL NOT NULL,
-        type TEXT NOT NULL,
-        categoryId INTEGER NOT NULL,
-        accountId INTEGER NOT NULL,
-        note TEXT,
-        receiptPath TEXT,
-        date TEXT NOT NULL,
-        time TEXT NOT NULL,
-        createdAt INTEGER NOT NULL,
-        FOREIGN KEY (categoryId) REFERENCES categories (id),
-        FOREIGN KEY (accountId) REFERENCES accounts (id)
-      )
-    ''');
+      final now = DateTime.now().millisecondsSinceEpoch;
 
-    await _insertDefaultData(db);
-  }
+      transaction.set(
+        _accountsRef.doc('1'),
+        {
+          'id': 1,
+          'name': 'Cash',
+          'currency': 'LKR',
+          'balance': 0.0,
+          'isDefault': true,
+          'isIncluded': true,
+          'createdAt': now,
+        },
+      );
 
-  Future<void> _insertDefaultData(Database db) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
+      final defaultCategories = [
+        {'name': 'Salary', 'type': 'income', 'iconName': 'payments'},
+        {'name': 'Freelance Income', 'type': 'income', 'iconName': 'laptop_mac'},
+        {'name': 'Business Income', 'type': 'income', 'iconName': 'business_center'},
+        {'name': 'Investment Returns', 'type': 'income', 'iconName': 'trending_up'},
+        {'name': 'Bonus', 'type': 'income', 'iconName': 'workspace_premium'},
+        {'name': 'Side Hustles', 'type': 'income', 'iconName': 'computer'},
+        {'name': 'Gift Received', 'type': 'income', 'iconName': 'card_giftcard'},
+        {'name': 'Rental Income', 'type': 'income', 'iconName': 'home_work'},
+        {'name': 'Dividends', 'type': 'income', 'iconName': 'account_balance'},
+        {'name': 'Refunds', 'type': 'income', 'iconName': 'assignment_return'},
+        {'name': 'Bank Interest', 'type': 'income', 'iconName': 'savings'},
+        {'name': 'Rent', 'type': 'expense', 'iconName': 'home'},
+        {'name': 'Electricity', 'type': 'expense', 'iconName': 'electric_bolt'},
+        {'name': 'Water', 'type': 'expense', 'iconName': 'water_drop'},
+        {'name': 'Gas', 'type': 'expense', 'iconName': 'local_fire_department'},
+        {'name': 'Garbage', 'type': 'expense', 'iconName': 'delete_outline'},
+        {'name': 'Groceries', 'type': 'expense', 'iconName': 'shopping_cart'},
+        {'name': 'Phone', 'type': 'expense', 'iconName': 'smartphone'},
+        {'name': 'Internet', 'type': 'expense', 'iconName': 'wifi'},
+        {'name': 'TV', 'type': 'expense', 'iconName': 'tv'},
+        {'name': 'Domestic Help', 'type': 'expense', 'iconName': 'cleaning_services'},
+        {'name': 'Transport', 'type': 'expense', 'iconName': 'directions_bus'},
+        {'name': 'Fuel', 'type': 'expense', 'iconName': 'local_gas_station'},
+        {'name': 'Vehicle', 'type': 'expense', 'iconName': 'directions_car'},
+        {'name': 'Parking', 'type': 'expense', 'iconName': 'local_parking'},
+        {'name': 'Tuition', 'type': 'expense', 'iconName': 'school'},
+        {'name': 'Books', 'type': 'expense', 'iconName': 'menu_book'},
+        {'name': 'Activities', 'type': 'expense', 'iconName': 'sports_soccer'},
+        {'name': 'Doctor', 'type': 'expense', 'iconName': 'medical_services'},
+        {'name': 'Meds', 'type': 'expense', 'iconName': 'medication'},
+        {'name': 'Insurance', 'type': 'expense', 'iconName': 'health_and_safety'},
+        {'name': 'Dental', 'type': 'expense', 'iconName': 'masks'},
+        {'name': 'Clothing', 'type': 'expense', 'iconName': 'checkroom'},
+        {'name': 'Salon', 'type': 'expense', 'iconName': 'content_cut'},
+        {'name': 'Gym', 'type': 'expense', 'iconName': 'fitness_center'},
+        {'name': 'Dining', 'type': 'expense', 'iconName': 'restaurant'},
+        {'name': 'Movies', 'type': 'expense', 'iconName': 'movie'},
+        {'name': 'Travel', 'type': 'expense', 'iconName': 'flight'},
+        {'name': 'Hobbies', 'type': 'expense', 'iconName': 'palette'},
+        {'name': 'Credit Cards', 'type': 'expense', 'iconName': 'credit_card'},
+        {'name': 'Savings', 'type': 'expense', 'iconName': 'savings'},
+        {'name': 'Gifts', 'type': 'expense', 'iconName': 'card_giftcard'},
+        {'name': 'Emergency', 'type': 'expense', 'iconName': 'warning_amber'},
+        {'name': 'Subscriptions', 'type': 'expense', 'iconName': 'subscriptions'},
+        {'name': 'Credit Card Interest', 'type': 'expense', 'iconName': 'credit_card'},
+        {'name': 'Bank Charges', 'type': 'expense', 'iconName': 'account_balance'},
+      ];
 
-    await db.insert('accounts', {
-      'name': 'Cash',
-      'currency': 'LKR',
-      'balance': 0.0,
-      'isDefault': 1,
-      'isIncluded': 1,
-      'createdAt': now,
+      for (var index = 0; index < defaultCategories.length; index++) {
+        final category = defaultCategories[index];
+        final categoryId = index + 1;
+
+        transaction.set(
+          _categoriesRef.doc(categoryId.toString()),
+          {
+            'id': categoryId,
+            'name': category['name'],
+            'type': category['type'],
+            'iconName': category['iconName'],
+            'isDefault': true,
+            'createdAt': now,
+          },
+        );
+      }
+
+      transaction.set(
+        _countersRef,
+        {
+          'accountId': 1,
+          'categoryId': defaultCategories.length,
+          'transactionId': 0,
+        },
+        SetOptions(merge: true),
+      );
+
+      transaction.set(
+        _configRef,
+        {'seeded': true},
+        SetOptions(merge: true),
+      );
     });
+  }
 
-    final defaultCategories = [
-      // Income
-      {'name': 'Salary', 'type': 'income', 'iconName': 'payments'},
-      {'name': 'Freelance Income', 'type': 'income', 'iconName': 'laptop_mac'},
-      {'name': 'Business Income', 'type': 'income', 'iconName': 'business_center'},
-      {'name': 'Investment Returns', 'type': 'income', 'iconName': 'trending_up'},
-      {'name': 'Bonus', 'type': 'income', 'iconName': 'workspace_premium'},
-      {'name': 'Side Hustles', 'type': 'income', 'iconName': 'computer'},
-      {'name': 'Gift Received', 'type': 'income', 'iconName': 'card_giftcard'},
-      {'name': 'Rental Income', 'type': 'income', 'iconName': 'home_work'},
-      {'name': 'Dividends', 'type': 'income', 'iconName': 'account_balance'},
-      {'name': 'Refunds', 'type': 'income', 'iconName': 'assignment_return'},
-      {'name': 'Bank Interest', 'type': 'income', 'iconName': 'savings'},
+  Future<int> _nextId(Transaction transaction, String counterField) async {
+    final counterSnapshot = await transaction.get(_countersRef);
+    final counterData = counterSnapshot.data() ?? <String, dynamic>{};
+    final current = (counterData[counterField] as num?)?.toInt() ?? 0;
+    final next = current + 1;
 
-      // Expenses
-      {'name': 'Rent', 'type': 'expense', 'iconName': 'home'},
-      {'name': 'Electricity', 'type': 'expense', 'iconName': 'electric_bolt'},
-      {'name': 'Water', 'type': 'expense', 'iconName': 'water_drop'},
-      {'name': 'Gas', 'type': 'expense', 'iconName': 'local_fire_department'},
-      {'name': 'Garbage', 'type': 'expense', 'iconName': 'delete_outline'},
-      {'name': 'Groceries', 'type': 'expense', 'iconName': 'shopping_cart'},
-      {'name': 'Phone', 'type': 'expense', 'iconName': 'smartphone'},
-      {'name': 'Internet', 'type': 'expense', 'iconName': 'wifi'},
-      {'name': 'TV', 'type': 'expense', 'iconName': 'tv'},
-      {'name': 'Domestic Help', 'type': 'expense', 'iconName': 'cleaning_services'},
-      {'name': 'Transport', 'type': 'expense', 'iconName': 'directions_bus'},
-      {'name': 'Fuel', 'type': 'expense', 'iconName': 'local_gas_station'},
-      {'name': 'Vehicle', 'type': 'expense', 'iconName': 'directions_car'},
-      {'name': 'Parking', 'type': 'expense', 'iconName': 'local_parking'},
-      {'name': 'Tuition', 'type': 'expense', 'iconName': 'school'},
-      {'name': 'Books', 'type': 'expense', 'iconName': 'menu_book'},
-      {'name': 'Activities', 'type': 'expense', 'iconName': 'sports_soccer'},
-      {'name': 'Doctor', 'type': 'expense', 'iconName': 'medical_services'},
-      {'name': 'Meds', 'type': 'expense', 'iconName': 'medication'},
-      {'name': 'Insurance', 'type': 'expense', 'iconName': 'health_and_safety'},
-      {'name': 'Dental', 'type': 'expense', 'iconName': 'masks'},
-      {'name': 'Clothing', 'type': 'expense', 'iconName': 'checkroom'},
-      {'name': 'Salon', 'type': 'expense', 'iconName': 'content_cut'},
-      {'name': 'Gym', 'type': 'expense', 'iconName': 'fitness_center'},
-      {'name': 'Dining', 'type': 'expense', 'iconName': 'restaurant'},
-      {'name': 'Movies', 'type': 'expense', 'iconName': 'movie'},
-      {'name': 'Travel', 'type': 'expense', 'iconName': 'flight'},
-      {'name': 'Hobbies', 'type': 'expense', 'iconName': 'palette'},
-      {'name': 'Credit Cards', 'type': 'expense', 'iconName': 'credit_card'},
+    transaction.set(
+      _countersRef,
+      {counterField: next},
+      SetOptions(merge: true),
+    );
 
-      // Other / Savings
-      {'name': 'Savings', 'type': 'expense', 'iconName': 'savings'},
-      {'name': 'Gifts', 'type': 'expense', 'iconName': 'card_giftcard'},
-      {'name': 'Emergency', 'type': 'expense', 'iconName': 'warning_amber'},
-      {'name': 'Subscriptions', 'type': 'expense', 'iconName': 'subscriptions'},
-      {'name': 'Credit Card Interest', 'type': 'expense', 'iconName': 'credit_card'},
-      {'name': 'Bank Charges', 'type': 'expense', 'iconName': 'account_balance'},
-    ];
+    return next;
+  }
 
-    for (final category in defaultCategories) {
-      await db.insert('categories', {
-        'name': category['name'],
-        'type': category['type'],
-        'iconName': category['iconName'],
-        'isDefault': 1,
-        'createdAt': now,
-      });
-    }
+  Future<int> _insertWithCounter({
+    required String collectionName,
+    required String counterField,
+    required Map<String, dynamic> data,
+  }) async {
+    await _ensureSeeded();
+
+    return _firestore.runTransaction((transaction) async {
+      final id = await _nextId(transaction, counterField);
+      transaction.set(
+        _firestore.collection(collectionName).doc(id.toString()),
+        {...data, 'id': id},
+      );
+      return id;
+    });
   }
 
   Future<int> insertAccount(AccountModel account) async {
-    final db = await instance.database;
-    return await db.insert('accounts', account.toMap());
+    return _insertWithCounter(
+      collectionName: _accountsCollection,
+      counterField: 'accountId',
+      data: account.toMap(),
+    );
   }
 
   Future<List<AccountModel>> getAccounts() async {
-    final db = await instance.database;
-    final result = await db.query('accounts', orderBy: 'createdAt DESC');
+    await _ensureSeeded();
 
-    return result.map((map) => AccountModel.fromMap(map)).toList();
+    final snapshot = await _accountsRef.get();
+    final accounts = snapshot.docs
+        .map((doc) => AccountModel.fromMap(doc.data()))
+        .toList();
+
+    accounts.sort((left, right) => right.createdAt.compareTo(left.createdAt));
+    return accounts;
   }
 
   Future<int> insertCategory(CategoryModel category) async {
-    final db = await instance.database;
-    return await db.insert('categories', category.toMap());
+    return _insertWithCounter(
+      collectionName: _categoriesCollection,
+      counterField: 'categoryId',
+      data: category.toMap(),
+    );
   }
 
   Future<List<CategoryModel>> getCategoriesByType(String type) async {
-    final db = await instance.database;
+    await _ensureSeeded();
 
-    final result = await db.query(
-      'categories',
-      where: 'type = ?',
-      whereArgs: [type],
-      orderBy: 'isDefault DESC, name ASC',
-    );
+    final snapshot = await _categoriesRef.where('type', isEqualTo: type).get();
+    final categories = snapshot.docs
+        .map((doc) => CategoryModel.fromMap(doc.data()))
+        .toList();
 
-    return result.map((map) => CategoryModel.fromMap(map)).toList();
+    categories.sort((left, right) {
+      final defaultComparison =
+          (right.isDefault ? 1 : 0).compareTo(left.isDefault ? 1 : 0);
+
+      if (defaultComparison != 0) {
+        return defaultComparison;
+      }
+
+      return left.name.toLowerCase().compareTo(right.name.toLowerCase());
+    });
+
+    return categories;
   }
 
   Future<int> insertTransaction(TransactionModel transaction) async {
-    final db = await instance.database;
+    await _ensureSeeded();
 
-    final transactionId = await db.insert(
-      'transactions',
-      transaction.toMap(),
-    );
+    return _firestore.runTransaction((transactionRef) async {
+      final accountRef = _accountsRef.doc(transaction.accountId.toString());
+      final accountSnapshot = await transactionRef.get(accountRef);
+      final countersSnapshot = await transactionRef.get(_countersRef);
+      final countersData = countersSnapshot.data() ?? <String, dynamic>{};
+      final currentTransactionId =
+          (countersData['transactionId'] as num?)?.toInt() ?? 0;
+      final transactionId = currentTransactionId + 1;
 
-    final account = await db.query(
-      'accounts',
-      where: 'id = ?',
-      whereArgs: [transaction.accountId],
-      limit: 1,
-    );
+      transactionRef.set(
+        _countersRef,
+        {'transactionId': transactionId},
+        SetOptions(merge: true),
+      );
 
-    if (account.isNotEmpty) {
-      final currentBalance = account.first['balance'] as double;
+      transactionRef.set(
+        _transactionsRef.doc(transactionId.toString()),
+        {...transaction.toMap(), 'id': transactionId},
+      );
 
-      double newBalance = currentBalance;
+      final accountData = accountSnapshot.data();
+      if (accountData != null) {
+        final currentBalance =
+            (accountData['balance'] as num?)?.toDouble() ?? 0.0;
 
-      if (transaction.type == 'income') {
-        newBalance += transaction.amount;
-      } else {
-        newBalance -= transaction.amount;
+        final updatedBalance = transaction.type == 'income'
+            ? currentBalance + transaction.amount
+            : currentBalance - transaction.amount;
+
+        transactionRef.update(accountRef, {'balance': updatedBalance});
       }
 
-      await db.update(
-        'accounts',
-        {'balance': newBalance},
-        where: 'id = ?',
-        whereArgs: [transaction.accountId],
-      );
-    }
-
-    return transactionId;
+      return transactionId;
+    });
   }
 
   Future<List<TransactionModel>> getTransactions() async {
-    final db = await instance.database;
+    await _ensureSeeded();
 
-    final result = await db.query(
-      'transactions',
-      orderBy: 'createdAt DESC',
-    );
+    final snapshot = await _transactionsRef.get();
+    final transactions = snapshot.docs
+        .map((doc) => TransactionModel.fromMap(doc.data()))
+        .toList();
 
-    return result.map((map) => TransactionModel.fromMap(map)).toList();
+    transactions.sort((left, right) => right.createdAt.compareTo(left.createdAt));
+    return transactions;
   }
 
   Future<void> close() async {
-    final db = await instance.database;
-    db.close();
+    return;
   }
 }

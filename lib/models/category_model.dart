@@ -1,12 +1,12 @@
 class CategoryModel {
-  final int? id;
+  final String? id;
   final String name;
-  final String type; // income or expense
+  final String type;
   final String iconName;
   final bool isDefault;
   final int createdAt;
 
-  CategoryModel({
+  const CategoryModel({
     this.id,
     required this.name,
     required this.type,
@@ -15,30 +15,43 @@ class CategoryModel {
     required this.createdAt,
   });
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toFirestore() {
     return {
-      'id': id,
       'name': name,
       'type': type,
       'iconName': iconName,
-      'isDefault': isDefault ? 1 : 0,
+      'isDefault': isDefault,
       'createdAt': createdAt,
     };
   }
 
-  factory CategoryModel.fromMap(Map<String, dynamic> map) {
+  Map<String, dynamic> toMap() {
+    return toFirestore();
+  }
+
+  factory CategoryModel.fromFirestore(
+    String id,
+    Map<String, dynamic> data,
+  ) {
     return CategoryModel(
-      id: map['id'],
-      name: map['name'],
-      type: map['type'],
-      iconName: map['iconName'],
-      isDefault: map['isDefault'] == 1,
-      createdAt: map['createdAt'],
+      id: id,
+      name: data['name']?.toString() ?? '',
+      type: data['type']?.toString() ?? 'expense',
+      iconName: data['iconName']?.toString() ?? 'category',
+      isDefault: data['isDefault'] == true,
+      createdAt: (data['createdAt'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  factory CategoryModel.fromMap(Map<String, dynamic> map) {
+    return CategoryModel.fromFirestore(
+      map['id']?.toString() ?? '',
+      map,
     );
   }
 
   CategoryModel copyWith({
-    int? id,
+    String? id,
     String? name,
     String? type,
     String? iconName,

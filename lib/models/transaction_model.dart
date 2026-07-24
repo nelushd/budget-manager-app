@@ -1,17 +1,17 @@
 class TransactionModel {
-  final int? id;
+  final String? id;
   final String title;
   final double amount;
-  final String type; // income or expense
-  final int categoryId;
-  final int accountId;
+  final String type;
+  final String categoryId;
+  final String accountId;
   final String? note;
   final String? receiptPath;
   final String date;
   final String time;
   final int createdAt;
 
-  TransactionModel({
+  const TransactionModel({
     this.id,
     required this.title,
     required this.amount,
@@ -25,9 +25,8 @@ class TransactionModel {
     required this.createdAt,
   });
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toFirestore() {
     return {
-      'id': id,
       'title': title,
       'amount': amount,
       'type': type,
@@ -41,29 +40,43 @@ class TransactionModel {
     };
   }
 
-  factory TransactionModel.fromMap(Map<String, dynamic> map) {
+  Map<String, dynamic> toMap() {
+    return toFirestore();
+  }
+
+  factory TransactionModel.fromFirestore(
+    String id,
+    Map<String, dynamic> data,
+  ) {
     return TransactionModel(
-      id: map['id'],
-      title: map['title'],
-      amount: map['amount'],
-      type: map['type'],
-      categoryId: map['categoryId'],
-      accountId: map['accountId'],
-      note: map['note'],
-      receiptPath: map['receiptPath'],
-      date: map['date'],
-      time: map['time'],
-      createdAt: map['createdAt'],
+      id: id,
+      title: data['title']?.toString() ?? '',
+      amount: (data['amount'] as num?)?.toDouble() ?? 0,
+      type: data['type']?.toString() ?? 'expense',
+      categoryId: data['categoryId']?.toString() ?? '',
+      accountId: data['accountId']?.toString() ?? '',
+      note: data['note']?.toString(),
+      receiptPath: data['receiptPath']?.toString(),
+      date: data['date']?.toString() ?? '',
+      time: data['time']?.toString() ?? '',
+      createdAt: (data['createdAt'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  factory TransactionModel.fromMap(Map<String, dynamic> map) {
+    return TransactionModel.fromFirestore(
+      map['id']?.toString() ?? '',
+      map,
     );
   }
 
   TransactionModel copyWith({
-    int? id,
+    String? id,
     String? title,
     double? amount,
     String? type,
-    int? categoryId,
-    int? accountId,
+    String? categoryId,
+    String? accountId,
     String? note,
     String? receiptPath,
     String? date,

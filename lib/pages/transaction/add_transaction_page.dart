@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../../data/database_helper.dart';
+import '../../services/firestore_service.dart';
 import '../../models/account_model.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../utils/category_icon.dart';
 import '../accounts/accounts_page.dart';
 import '../categories/categories_page.dart';
-import '../categories/create_category_page.dart';
+import '../categories/create_category_page.dart'; 
+import '../../models/receipt_scan_result.dart';
+import '../../services/receipt_scanner_service.dart';
 
 class AddTransactionPage extends StatefulWidget {
   final String transactionType; // income or expense
@@ -22,6 +24,9 @@ class AddTransactionPage extends StatefulWidget {
 }
 
 class _AddTransactionPageState extends State<AddTransactionPage> {
+  final ReceiptScannerService receiptScannerService = ReceiptScannerService.instance;
+  bool isScanningReceipt = false;
+  final FirestoreService firestoreService = FirestoreService.instance;
   final TextEditingController amountController = TextEditingController();
   final TextEditingController titleController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
@@ -58,13 +63,30 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     }
   }
 
+  List<CategoryModel> get _displayCategories {
+    if (selectedCategory == null || categories.isEmpty) {
+      return categories;
+    }
+
+    final selectedIndex = categories.indexWhere(
+      (category) => category.id == selectedCategory!.id,
+    );
+
+    if (selectedIndex <= 0) {
+      return categories;
+    }
+
+    final reordered = List<CategoryModel>.from(categories);
+    final selected = reordered.removeAt(selectedIndex);
+    reordered.insert(0, selected);
+    return reordered;
+  }
+
   Future<void> loadData() async {
     try {
-      final loadedAccounts =
-          await DatabaseHelper.instance.getAccounts();
+      final loadedAccounts = await firestoreService.getAccounts();
 
-      final loadedCategories = await DatabaseHelper.instance
-          .getCategoriesByType(selectedType);
+      final loadedCategories = await firestoreService.getCategoriesByType(selectedType);
 
       if (!mounted) return;
 
@@ -141,8 +163,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     });
 
     try {
-      final loadedCategories = await DatabaseHelper.instance
-          .getCategoriesByType(selectedType);
+      final loadedCategories =
+    await firestoreService.getCategoriesByType(selectedType);
 
       if (!mounted) return;
 
@@ -248,7 +270,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         createdAt: now.millisecondsSinceEpoch,
       );
 
-      await DatabaseHelper.instance.insertTransaction(transaction);
+     await firestoreService.addTransaction(transaction);
 
       if (!mounted) return;
 
@@ -498,19 +520,101 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   }
 
   Future<void> _takeReceiptPhoto() async {
-    debugPrint('Take receipt photo selected');
-
-    _showMessage(
-      'Camera scanning will be added in the OCR phase.',
+    await _scanReceipt(
+      () => receiptScannerService.scanFromCamera(),
     );
   }
 
   Future<void> _chooseReceiptImage() async {
-    debugPrint('Choose receipt image selected');
-
-    _showMessage(
-      'Gallery receipt selection will be added in the OCR phase.',
+    await _scanReceipt(
+      () => receiptScannerService.scanFromGallery(),
     );
+  }
+
+  Future<void> _scanReceipt(
+    Future<ReceiptScanResult?> Function() scanAction,
+  ) async {
+    if (isScanningReceipt) return;
+
+    setState(() {
+      isScanningReceipt = true;
+    });
+
+    try {
+      final ReceiptScanResult? result = await scanAction();
+
+      if (!mounted || result == null) return;
+
+      _applyReceiptResult(result);
+
+      _showMessage(
+        'Receipt scanned. Review the details before saving.',
+      );
+    } catch (error, stackTrace) {
+      debugPrint('Receipt scanning error: $error');
+      debugPrint('$stackTrace');
+
+      if (!mounted) return;
+
+      _showMessage(
+        'Could not scan the receipt.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isScanningReceipt = false;
+        });
+      }
+    }
+  }
+
+  void _applyReceiptResult(ReceiptScanResult result) {
+    setState(() {
+      if (result.amount != null) {
+        amountController.text =
+            result.amount!.toStringAsFixed(2);
+      }
+
+      if (result.title != null &&
+          result.title!.trim().isNotEmpty) {
+        titleController.text = result.title!.trim();
+      }
+
+      if (result.date != null) {
+        selectedDate = result.date!;
+      }
+
+      if (result.time != null) {
+        selectedTime = result.time!;
+      }
+
+      if (result.notes != null &&
+          noteController.text.trim().isEmpty) {
+        noteController.text = result.notes!;
+      }
+
+      if (result.category != null) {
+        selectedCategory =
+            _findMatchingCategory(result.category!);
+      }
+    });
+  }
+
+  CategoryModel? _findMatchingCategory(
+    String suggestedCategory,
+  ) {
+    final String normalizedSuggestion =
+        suggestedCategory.trim().toLowerCase();
+
+    for (final CategoryModel category in categories) {
+      if (category.name.trim().toLowerCase() ==
+          normalizedSuggestion) {
+        return category;
+      }
+    }
+
+    return selectedCategory;
   }
 
   void _showMessage(
@@ -692,8 +796,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                         ),
                         const SizedBox(height: 16),
                         OutlinedButton.icon(
-                          onPressed: () =>
-                              _showScanOptions(context),
+                          onPressed: isScanningReceipt
+                              ? null
+                              : () => _showScanOptions(context),
                           style: OutlinedButton.styleFrom(
                             foregroundColor:
                                 const Color(0xFF6B7280),
@@ -712,13 +817,23 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                   BorderRadius.circular(24),
                             ),
                           ),
-                          icon: const Icon(
-                            Icons.document_scanner_outlined,
-                            size: 19,
-                          ),
-                          label: const Text(
-                            'Scan Receipt',
-                            style: TextStyle(
+                          icon: isScanningReceipt
+                              ? const SizedBox(
+                                  width: 19,
+                                  height: 19,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.document_scanner_outlined,
+                                  size: 19,
+                                ),
+                          label: Text(
+                            isScanningReceipt
+                                ? 'Scanning...'
+                                : 'Scan Receipt',
+                            style: const TextStyle(
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -767,10 +882,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                 child: ListView.builder(
                                   scrollDirection: Axis.horizontal,
                                   padding: EdgeInsets.zero,
-                                  itemCount: categories.length,
+                                  itemCount: _displayCategories.length,
                                   itemBuilder: (context, index) {
                                     final category =
-                                        categories[index];
+                                        _displayCategories[index];
 
                                     final isSelected =
                                         selectedCategory?.id ==
