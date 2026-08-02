@@ -12,6 +12,10 @@ class ReceiptScannerService {
 
   final ImagePicker _imagePicker = ImagePicker();
 
+  // ==========================================================
+  // Camera / Gallery — UNCHANGED
+  // ==========================================================
+
   Future<ReceiptScanResult?> scanFromCamera() async {
     return _pickAndProcessImage(ImageSource.camera);
   }
@@ -36,6 +40,10 @@ class ReceiptScannerService {
     return processImage(selectedImage.path);
   }
 
+  // ==========================================================
+  // processImage() — pass the whole RecognizedText object
+  // ==========================================================
+
   Future<ReceiptScanResult> processImage(
     String imagePath,
   ) async {
@@ -50,85 +58,109 @@ class ReceiptScannerService {
       final RecognizedText recognizedText =
           await textRecognizer.processImage(inputImage);
 
-      final String rawText = recognizedText.text.trim();
+      // ===== ADD THESE =====
+      print("========== OCR RAW TEXT ==========");
+      print(recognizedText.text.trim());
+      print("==================================");
+      // =====================
 
-      return _parseReceipt(rawText);
+      return _parseReceipt(recognizedText);
     } finally {
       await textRecognizer.close();
     }
   }
 
-  ReceiptScanResult _parseReceipt(String rawText) {
-    final List<String> lines = rawText
-        .split('\n')
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
-        .toList();
+  // ==========================================================
+  // _parseReceipt() — now takes the full RecognizedText object
+  // ==========================================================
+
+  ReceiptScanResult _parseReceipt(RecognizedText recognizedText) {
+    // Still required for date extraction, time extraction, and notes.
+    final String rawText = recognizedText.text.trim();
+
+    // Flatten every TextLine from every TextBlock into a single list.
+    // TextBlocks are only used to obtain the TextLines — the extraction
+    // algorithm itself does not rely on block grouping.
+    final List<TextLine> allTextLines = [];
+    for (final TextBlock block in recognizedText.blocks) {
+      allTextLines.addAll(block.lines);
+    }
 
     return ReceiptScanResult(
       rawText: rawText,
-      amount: _extractAmount(lines),
-      title: _extractTitle(lines),
-      category: _suggestCategory(rawText),
+      amount: _extractAmount(allTextLines),
+      category: null,
       date: _extractDate(rawText),
       time: _extractTime(rawText),
-      notes: rawText.isEmpty
-          ? null
-          : 'Transaction details extracted from receipt.',
+      notes: "Transaction details extracted from receipt.",
     );
   }
 
-  double? _extractAmount(List<String> lines) {
-    final RegExp amountPattern = RegExp(
-      r'(?:LKR|Rs\.?|රු\.?)?\s*'
-      r'(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})'
-      r'|\d+\.\d{1,2})',
-      caseSensitive: false,
-    );
+  // ==========================================================
+  // Amount extraction — REWRITTEN to use List<TextLine>
+  // ==========================================================
 
-    const List<String> totalKeywords = [
-      'grand total',
-      'net total',
-      'amount due',
-      'total due',
-      'balance due',
-      'total',
-    ];
+  static final RegExp _amountPattern = RegExp(
+    r'(\d{1,3}(?:[, ]\d{3})*(?:\.\d{2})|\d+\.\d{2})',
+  );
 
-    for (final String keyword in totalKeywords) {
-      for (final String line in lines.reversed) {
-        if (!line.toLowerCase().contains(keyword)) {
-          continue;
+  static const List<String> _ignoreKeywords = [
+    'cash',
+    'paid',
+    'balance',
+    'change',
+  ];
+
+  // Exact priority order requested.
+  static const List<String> _totalKeywords = [
+    'grand total',
+    'net total',
+    'total amount',
+    'total invoice value',
+    'bill total',
+    'transfer amount',
+    'amount due',
+    'total due',
+    'amount (lkr)',
+    'amount',
+    'subtotal',
+    'sub total',
+    'total',
+  ];
+
+  double? _extractAmount(List<TextLine> lines) {
+    for (final String keyword in _totalKeywords) {
+      TextLine? keywordLine;
+
+      for (final TextLine line in lines) {
+        if (line.text.toLowerCase().contains(keyword)) {
+          keywordLine = line;
+          break;
         }
+      }
 
-        final Iterable<RegExpMatch> matches =
-            amountPattern.allMatches(line);
+      if (keywordLine == null) {
+        continue;
+      }
 
-        if (matches.isNotEmpty) {
-          final String amountText =
-              matches.last.group(1)!.replaceAll(
-            RegExp(r'[,\s]'),
-            '',
-          );
+      final double? found = _findNearbyAmount(
+        lines: lines,
+        keywordLine: keywordLine,
+        keyword: keyword,
+      );
 
-          return double.tryParse(amountText);
-        }
+      if (found != null) {
+        return found;
       }
     }
 
+    // Fallback: no keyword found anywhere — return the largest monetary value.
     final List<double> possibleAmounts = [];
 
-    for (final String line in lines) {
+    for (final TextLine line in lines) {
       for (final RegExpMatch match
-          in amountPattern.allMatches(line)) {
-        final String amountText =
-            match.group(1)!.replaceAll(
-          RegExp(r'[,\s]'),
-          '',
-        );
-
-        final double? value = double.tryParse(amountText);
-
+          in _amountPattern.allMatches(line.text)) {
+        final double? value = _parseAmount(match.group(1)!);
         if (value != null && value > 0) {
           possibleAmounts.add(value);
         }
@@ -140,54 +172,150 @@ class ReceiptScannerService {
     }
 
     possibleAmounts.sort();
-
     return possibleAmounts.last;
   }
 
-  String? _extractTitle(List<String> lines) {
-    const List<String> ignoredWords = [
-      'receipt',
-      'invoice',
-      'tax invoice',
-      'cash receipt',
-      'duplicate',
-      'customer copy',
-      'merchant copy',
-      'thank you',
-      'welcome',
-    ];
+  /// Locates the best monetary amount associated with [keywordLine].
+  ///
+  /// Strategy:
+  /// 1. Look at every TextLine on the same visual row as the keyword
+  ///    (including the keyword's own line, e.g. "Total: 500.00").
+  /// 2. Among same-row candidates, pick the one whose centerX is closest
+  ///    to the keyword's centerX.
+  /// 3. If nothing is found on the same row, check the next three
+  ///    TextLines that appear below the keyword in the flattened list.
+  double? _findNearbyAmount({
+    required List<TextLine> lines,
+    required TextLine keywordLine,
+    required String keyword,
+  }) {
+    final Rect keywordBox = keywordLine.boundingBox;
 
-    for (final String line in lines.take(8)) {
-      final String lowercaseLine = line.toLowerCase();
+    final List<TextLine> sameRowCandidates = [];
 
-      final bool shouldIgnore = ignoredWords.any(
-        (word) => lowercaseLine == word ||
-            lowercaseLine.contains(word),
-      );
+    // The keyword's own line may itself contain the amount.
+    if (!_shouldIgnoreLine(keywordLine, keyword) &&
+        _amountPattern.hasMatch(keywordLine.text)) {
+      sameRowCandidates.add(keywordLine);
+    }
 
-      if (shouldIgnore) {
+    for (final TextLine line in lines) {
+      if (identical(line, keywordLine)) {
         continue;
       }
-
-      if (_looksLikeDate(line) ||
-          _looksLikeTime(line) ||
-          _looksLikeAmount(line)) {
+      if (_shouldIgnoreLine(line, keyword)) {
         continue;
       }
-
-      if (!RegExp(r'[A-Za-z]').hasMatch(line)) {
+      if (!_amountPattern.hasMatch(line.text)) {
         continue;
       }
+      if (_isSameRow(keywordBox, line.boundingBox)) {
+        sameRowCandidates.add(line);
+      }
+    }
 
-      if (line.length < 3 || line.length > 60) {
-        continue;
+    if (sameRowCandidates.isNotEmpty) {
+      // Select the candidate whose centerX is horizontally closest
+      // to the keyword's centerX.
+      TextLine? closest;
+      double closestDistance = double.infinity;
+      final double keywordCenterX =
+          keywordBox.left + (keywordBox.width / 2);
+
+      for (final TextLine candidate in sameRowCandidates) {
+        final Rect box = candidate.boundingBox;
+        final double candidateCenterX = box.left + (box.width / 2);
+        final double distance =
+            (candidateCenterX - keywordCenterX).abs();
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closest = candidate;
+        }
       }
 
-      return _formatTitle(line);
+      final double? value =
+          closest != null ? _extractAmountFromLine(closest) : null;
+
+      if (value != null) {
+        return value;
+      }
+    }
+
+    // Nothing on the same row — search the next three TextLines below.
+    final int keywordIndex = lines.indexOf(keywordLine);
+    if (keywordIndex != -1) {
+      int checked = 0;
+      for (int i = keywordIndex + 1;
+          i < lines.length && checked < 3;
+          i++, checked++) {
+        final TextLine candidate = lines[i];
+
+        if (_shouldIgnoreLine(candidate, keyword)) {
+          continue;
+        }
+        if (!_amountPattern.hasMatch(candidate.text)) {
+          continue;
+        }
+
+        final double? value = _extractAmountFromLine(candidate);
+        if (value != null) {
+          return value;
+        }
+      }
     }
 
     return null;
   }
+
+  /// True if [line] should be ignored for the current [keyword] search,
+  /// because it contains one of the excluded terms (Cash/Paid/Balance/Change)
+  /// — unless the keyword itself is "cash".
+  bool _shouldIgnoreLine(TextLine line, String keyword) {
+    if (keyword == 'cash') {
+      return false;
+    }
+
+    final String lower = line.text.toLowerCase();
+    return _ignoreKeywords.any((kw) => lower.contains(kw));
+  }
+
+  /// True if two bounding boxes are considered to be on the same visual row,
+  /// based on how close their vertical centers are relative to their height.
+  bool _isSameRow(Rect a, Rect b) {
+    final double aCenterY = a.top + (a.height / 2);
+    final double bCenterY = b.top + (b.height / 2);
+
+    final double tolerance =
+        ((a.height + b.height) / 4).clamp(10.0, 30.0);
+
+    return (aCenterY - bCenterY).abs() <= tolerance;
+  }
+
+  /// Extracts the first valid monetary value from a single TextLine.
+  double? _extractAmountFromLine(TextLine line) {
+    final Iterable<RegExpMatch> matches =
+        _amountPattern.allMatches(line.text);
+
+    if (matches.isEmpty) {
+      return null;
+    }
+
+    // Prefer the last monetary value on the line (commonly the actual
+    // figure when a currency code/prefix precedes it).
+    return _parseAmount(matches.last.group(1)!);
+  }
+
+  /// Parses a matched amount string (stripping thousands separators)
+  /// into a double.
+  double? _parseAmount(String rawAmount) {
+    final String cleaned = rawAmount.replaceAll(RegExp(r'[,\s]'), '');
+    return double.tryParse(cleaned);
+  }
+
+  // ==========================================================
+  // Date extraction — UNCHANGED
+  // ==========================================================
 
   DateTime? _extractDate(String text) {
     final List<RegExp> patterns = [
@@ -238,6 +366,10 @@ class ReceiptScannerService {
 
     return null;
   }
+
+  // ==========================================================
+  // Time extraction — UNCHANGED
+  // ==========================================================
 
   TimeOfDay? _extractTime(String text) {
     final RegExp twelveHourPattern = RegExp(
@@ -292,6 +424,11 @@ class ReceiptScannerService {
 
     return null;
   }
+
+  // ==========================================================
+  // Category detection — kept intact (method preserved),
+  // simply not used for the `category` field per the new requirement.
+  // ==========================================================
 
   String? _suggestCategory(String text) {
     final String lowercaseText = text.toLowerCase();
@@ -415,15 +552,19 @@ class ReceiptScannerService {
         .trim()
         .split(' ')
         .map((word) {
-          if (word.isEmpty) {
-            return word;
-          }
+      if (word.isEmpty) {
+        return word;
+      }
 
-          return '${word[0].toUpperCase()}'
-              '${word.substring(1).toLowerCase()}';
-        })
+      return '${word[0].toUpperCase()}'
+          '${word.substring(1).toLowerCase()}';
+    })
         .join(' ');
   }
+
+  // ==========================================================
+  // _createValidDate() — UNCHANGED, kept as required
+  // ==========================================================
 
   DateTime? _createValidDate(
     int year,

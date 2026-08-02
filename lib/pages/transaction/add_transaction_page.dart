@@ -28,7 +28,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   bool isScanningReceipt = false;
   final FirestoreService firestoreService = FirestoreService.instance;
   final TextEditingController amountController = TextEditingController();
-  final TextEditingController titleController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
 
   List<AccountModel> accounts = [];
@@ -52,7 +51,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     selectedType = widget.transactionType;
 
     amountController.addListener(_refreshPage);
-    titleController.addListener(_refreshPage);
 
     loadData();
   }
@@ -201,7 +199,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
     final amountText =
         amountController.text.trim().replaceAll(',', '');
-    final title = titleController.text.trim();
     final amount = double.tryParse(amountText);
 
     if (amountText.isEmpty || amount == null || amount <= 0) {
@@ -228,14 +225,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       return;
     }
 
-    if (title.isEmpty) {
-      _showMessage(
-        'Please enter a title.',
-        isError: true,
-      );
-      return;
-    }
-
     if (selectedCategory!.id == null ||
         selectedAccount!.id == null) {
       _showMessage(
@@ -253,7 +242,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       final now = DateTime.now();
 
       final transaction = TransactionModel(
-        title: title,
         amount: amount,
         type: selectedType,
         categoryId: selectedCategory!.id!,
@@ -576,11 +564,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             result.amount!.toStringAsFixed(2);
       }
 
-      if (result.title != null &&
-          result.title!.trim().isNotEmpty) {
-        titleController.text = result.title!.trim();
-      }
-
       if (result.date != null) {
         selectedDate = result.date!;
       }
@@ -649,7 +632,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         0;
 
     final canSave = parsedAmount > 0 &&
-        titleController.text.trim().isNotEmpty &&
         selectedAccount != null &&
         selectedCategory != null &&
         !isSaving;
@@ -1125,14 +1107,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                       ),
                     ),
 
-                  const SizedBox(height: 26),
-
-                  _inputLabel('Title'),
-                  const SizedBox(height: 12),
-                  _textField(
-                    controller: titleController,
-                    hintText: 'Enter title',
-                  ),
+              
 
                   const SizedBox(height: 20),
 
@@ -1334,10 +1309,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   @override
   void dispose() {
     amountController.removeListener(_refreshPage);
-    titleController.removeListener(_refreshPage);
 
     amountController.dispose();
-    titleController.dispose();
     noteController.dispose();
 
     super.dispose();
