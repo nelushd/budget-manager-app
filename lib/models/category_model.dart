@@ -1,5 +1,6 @@
 class CategoryModel {
   final String? id;
+  final String userId;
   final String name;
   final String type;
   final String iconName;
@@ -8,6 +9,7 @@ class CategoryModel {
 
   const CategoryModel({
     this.id,
+    required this.userId,
     required this.name,
     required this.type,
     required this.iconName,
@@ -17,6 +19,7 @@ class CategoryModel {
 
   Map<String, dynamic> toFirestore() {
     return {
+      'userId': userId,
       'name': name,
       'type': type,
       'iconName': iconName,
@@ -35,6 +38,7 @@ class CategoryModel {
   ) {
     return CategoryModel(
       id: id,
+      userId: data['userId']?.toString() ?? '',
       name: data['name']?.toString() ?? '',
       type: data['type']?.toString() ?? 'expense',
       iconName: data['iconName']?.toString() ?? 'category',
@@ -52,6 +56,7 @@ class CategoryModel {
 
   CategoryModel copyWith({
     String? id,
+    String? userId,
     String? name,
     String? type,
     String? iconName,
@@ -60,6 +65,7 @@ class CategoryModel {
   }) {
     return CategoryModel(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       name: name ?? this.name,
       type: type ?? this.type,
       iconName: iconName ?? this.iconName,

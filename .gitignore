@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local TrOCR server (venv + model cache, not committed)
+trocr_server/venv/
+
+# Scratch folder for test receipt photos, etc.
+/tmp/

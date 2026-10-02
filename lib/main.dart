@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'pages/home/home_page.dart';
 import 'package:firebase_core/firebase_core.dart';
+
+import 'constants/colors.dart';
 import 'firebase_options.dart';
+import 'pages/auth/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,10 +23,15 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Budget Manager',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.secondary,
+          error: AppColors.error,
+        ),
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: const AuthGate(),
     );
   }
 }

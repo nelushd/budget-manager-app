@@ -1,8 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/account_model.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
+import '../models/budget_model.dart';
+import '../models/goal_model.dart';
+import '../models/goal_transaction_model.dart';
+import '../models/recurring_expense_model.dart';
+import '../models/recurring_payment_model.dart';
+import '../models/lending_model.dart';
+import '../models/lending_repayment_model.dart';
+import '../models/loan_model.dart';
+import '../models/loan_payment_model.dart';
+import '../models/transfer_model.dart';
+import '../utils/frequency.dart';
+import '../utils/period_calculator.dart';
 
 class FirestoreService {
   FirestoreService._();
@@ -23,6 +36,48 @@ class FirestoreService {
     return _firestore.collection('transactions');
   }
 
+  CollectionReference<Map<String, dynamic>> get _budgets {
+    return _firestore.collection('budgets');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _goals {
+    return _firestore.collection('goals');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _goalTransactions {
+    return _firestore.collection('goalTransactions');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _recurringExpenses {
+    return _firestore.collection('recurringExpenses');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _recurringPayments {
+    return _firestore.collection('recurringPayments');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _lendings {
+    return _firestore.collection('lendings');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _lendingRepayments {
+    return _firestore.collection('lendingRepayments');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _loans {
+    return _firestore.collection('loans');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _loanPayments {
+    return _firestore.collection('loanPayments');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _transfers {
+    return _firestore.collection('transfers');
+  }
+
+  String? get _currentUserId => FirebaseAuth.instance.currentUser?.uid;
+
   // ============================================================
   // ACCOUNTS
   // ============================================================
@@ -41,7 +96,14 @@ class FirestoreService {
   }
 
   Future<List<AccountModel>> getAccounts() async {
-    final snapshot = await _accounts.get();
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _accounts;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    final snapshot = await query.get();
 
     final accounts = snapshot.docs.map((document) {
       return AccountModel.fromFirestore(
@@ -62,7 +124,14 @@ class FirestoreService {
   }
 
   Stream<List<AccountModel>> watchAccounts() {
-    return _accounts.snapshots().map((snapshot) {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _accounts;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    return query.snapshots().map((snapshot) {
       final accounts = snapshot.docs.map((document) {
         return AccountModel.fromFirestore(
           document.id,
@@ -121,6 +190,7 @@ class FirestoreService {
     }
 
     final relatedTransactions = await _transactions
+        .where('userId', isEqualTo: _currentUserId)
         .where('accountId', isEqualTo: accountId)
         .limit(1)
         .get();
@@ -140,7 +210,8 @@ class FirestoreService {
     }
 
     final batch = _firestore.batch();
-    final snapshot = await _accounts.get();
+    final snapshot =
+        await _accounts.where('userId', isEqualTo: _currentUserId).get();
 
     bool accountFound = false;
 
@@ -168,6 +239,7 @@ class FirestoreService {
     String? excludedAccountId,
   }) async {
     final snapshot = await _accounts
+        .where('userId', isEqualTo: _currentUserId)
         .where('isDefault', isEqualTo: true)
         .get();
 
@@ -211,19 +283,43 @@ class FirestoreService {
     return document.id;
   }
 
+  /// Sentinel [CategoryModel.userId] for the shared reference list (Salary,
+  /// Rent, Groceries, ...) — not owned by any one user, readable by every
+  /// signed-in user, so a brand-new signup sees a populated category picker
+  /// immediately instead of starting from zero.
+  static const String kGlobalCategoryUserId = '__global__';
+
   Future<List<CategoryModel>> getCategoriesByType(
     String type,
   ) async {
-    final snapshot = await _categories
-        .where('type', isEqualTo: type)
-        .get();
+    final userId = _currentUserId;
 
-    final categories = snapshot.docs.map((document) {
-      return CategoryModel.fromFirestore(
-        document.id,
-        document.data(),
-      );
+    final ownQuery = userId == null
+        ? _categories.where('type', isEqualTo: type)
+        : _categories.where('type', isEqualTo: type).where('userId', isEqualTo: userId);
+    final globalQuery = _categories
+        .where('type', isEqualTo: type)
+        .where('userId', isEqualTo: kGlobalCategoryUserId);
+
+    final results = await Future.wait([ownQuery.get(), globalQuery.get()]);
+
+    final ownCategories = results[0].docs.map((document) {
+      return CategoryModel.fromFirestore(document.id, document.data());
     }).toList();
+
+    final globalCategories = results[1].docs.map((document) {
+      return CategoryModel.fromFirestore(document.id, document.data());
+    }).toList();
+
+    // A user's own category always wins over a same-named global one —
+    // preserves continuity for any account that already had its own copy
+    // (with real transaction/budget history attached) before the shared
+    // list existed.
+    final ownNames = {for (final c in ownCategories) c.name};
+    final categories = [
+      ...ownCategories,
+      ...globalCategories.where((c) => !ownNames.contains(c.name)),
+    ];
 
     categories.sort((first, second) {
       if (first.isDefault != second.isDefault) {
@@ -239,10 +335,15 @@ class FirestoreService {
   Stream<List<CategoryModel>> watchCategoriesByType(
     String type,
   ) {
-    return _categories
-        .where('type', isEqualTo: type)
-        .snapshots()
-        .map((snapshot) {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query =
+        _categories.where('type', isEqualTo: type);
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    return query.snapshots().map((snapshot) {
       final categories = snapshot.docs.map((document) {
         return CategoryModel.fromFirestore(
           document.id,
@@ -299,6 +400,7 @@ class FirestoreService {
     }
 
     final relatedTransactions = await _transactions
+        .where('userId', isEqualTo: _currentUserId)
         .where('categoryId', isEqualTo: categoryId)
         .limit(1)
         .get();
@@ -315,6 +417,24 @@ class FirestoreService {
   // ============================================================
   // TRANSACTIONS
   // ============================================================
+
+  /// Signed balance delta for one transaction against one account.
+  ///
+  /// A cash/bank account's `balance` is money owned: income adds to it,
+  /// expense subtracts. A `credit_card` account's `balance` is read
+  /// elsewhere (see [AccountModel.availableCredit]) as money currently
+  /// owed, so the sign is inverted there — an expense increases what's
+  /// owed, and income (a refund or credit) reduces it.
+  double _signedBalanceChange(
+    String? accountType,
+    String transactionType,
+    double amount,
+  ) {
+    final isIncome = transactionType == 'income';
+    final increasesBalance =
+        accountType == 'credit_card' ? !isIncome : isIncome;
+    return increasesBalance ? amount : -amount;
+  }
 
   Future<String> addTransaction(
     TransactionModel transactionModel,
@@ -352,10 +472,11 @@ class FirestoreService {
       final currentBalance =
           (accountData['balance'] as num?)?.toDouble() ?? 0;
 
-      final balanceChange =
-          transactionModel.type == 'income'
-              ? transactionModel.amount
-              : -transactionModel.amount;
+      final balanceChange = _signedBalanceChange(
+        accountData['type'] as String?,
+        transactionModel.type,
+        transactionModel.amount,
+      );
 
       final newBalance = currentBalance + balanceChange;
 
@@ -374,7 +495,14 @@ class FirestoreService {
   }
 
   Future<List<TransactionModel>> getTransactions() async {
-    final snapshot = await _transactions.get();
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _transactions;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    final snapshot = await query.get();
 
     final transactions = snapshot.docs.map((document) {
       return TransactionModel.fromFirestore(
@@ -394,9 +522,15 @@ class FirestoreService {
   Future<List<TransactionModel>> getTransactionsByType(
     String type,
   ) async {
-    final snapshot = await _transactions
-        .where('type', isEqualTo: type)
-        .get();
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query =
+        _transactions.where('type', isEqualTo: type);
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    final snapshot = await query.get();
 
     final transactions = snapshot.docs.map((document) {
       return TransactionModel.fromFirestore(
@@ -417,6 +551,7 @@ class FirestoreService {
     String accountId,
   ) async {
     final snapshot = await _transactions
+        .where('userId', isEqualTo: _currentUserId)
         .where('accountId', isEqualTo: accountId)
         .get();
 
@@ -436,7 +571,14 @@ class FirestoreService {
   }
 
   Stream<List<TransactionModel>> watchTransactions() {
-    return _transactions.snapshots().map((snapshot) {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _transactions;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    return query.snapshots().map((snapshot) {
       final transactions = snapshot.docs.map((document) {
         return TransactionModel.fromFirestore(
           document.id,
@@ -525,15 +667,19 @@ class FirestoreService {
                     ?.toDouble() ??
                 0;
 
-        final reversedOldAmount =
-            oldTransaction.type == 'income'
-                ? -oldTransaction.amount
-                : oldTransaction.amount;
+        final accountType = accountSnapshot.data()!['type'] as String?;
 
-        final appliedNewAmount =
-            updatedTransaction.type == 'income'
-                ? updatedTransaction.amount
-                : -updatedTransaction.amount;
+        final reversedOldAmount = -_signedBalanceChange(
+          accountType,
+          oldTransaction.type,
+          oldTransaction.amount,
+        );
+
+        final appliedNewAmount = _signedBalanceChange(
+          accountType,
+          updatedTransaction.type,
+          updatedTransaction.amount,
+        );
 
         firestoreTransaction.update(
           oldAccountReference,
@@ -575,15 +721,17 @@ class FirestoreService {
                     ?.toDouble() ??
                 0;
 
-        final reversedOldAmount =
-            oldTransaction.type == 'income'
-                ? -oldTransaction.amount
-                : oldTransaction.amount;
+        final reversedOldAmount = -_signedBalanceChange(
+          oldAccountSnapshot.data()!['type'] as String?,
+          oldTransaction.type,
+          oldTransaction.amount,
+        );
 
-        final appliedNewAmount =
-            updatedTransaction.type == 'income'
-                ? updatedTransaction.amount
-                : -updatedTransaction.amount;
+        final appliedNewAmount = _signedBalanceChange(
+          newAccountSnapshot.data()!['type'] as String?,
+          updatedTransaction.type,
+          updatedTransaction.amount,
+        );
 
         firestoreTransaction.update(
           oldAccountReference,
@@ -653,10 +801,11 @@ class FirestoreService {
                   ?.toDouble() ??
               0;
 
-      final reversedAmount =
-          existingTransaction.type == 'income'
-              ? -existingTransaction.amount
-              : existingTransaction.amount;
+      final reversedAmount = -_signedBalanceChange(
+        accountSnapshot.data()!['type'] as String?,
+        existingTransaction.type,
+        existingTransaction.amount,
+      );
 
       firestoreTransaction.update(
         accountReference,
@@ -665,5 +814,719 @@ class FirestoreService {
 
       firestoreTransaction.delete(transactionReference);
     });
+  }
+
+  // ============================================================
+  // BUDGETS
+  // ============================================================
+
+  Future<String> addBudget(BudgetModel budget) async {
+    if (budget.budgetName.trim().isEmpty) {
+      throw ArgumentError('Budget name cannot be empty.');
+    }
+
+    final document = await _budgets.add(budget.toFirestore());
+    return document.id;
+  }
+
+  Future<List<BudgetModel>> getBudgets() async {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _budgets;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    final snapshot = await query.get();
+
+    final budgets = snapshot.docs.map((document) {
+      return BudgetModel.fromFirestore(
+        document.id,
+        document.data(),
+      );
+    }).toList();
+
+    budgets.sort((first, second) => second.createdDate.compareTo(first.createdDate));
+    return budgets;
+  }
+
+  Stream<List<BudgetModel>> watchBudgets() {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _budgets;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    return query.snapshots().map((snapshot) {
+      final budgets = snapshot.docs.map((document) {
+        return BudgetModel.fromFirestore(
+          document.id,
+          document.data(),
+        );
+      }).toList();
+
+      budgets.sort((first, second) => second.createdDate.compareTo(first.createdDate));
+      return budgets;
+    });
+  }
+
+  Future<BudgetModel?> getBudgetById(String budgetId) async {
+    if (budgetId.trim().isEmpty) {
+      return null;
+    }
+
+    final document = await _budgets.doc(budgetId).get();
+
+    if (!document.exists || document.data() == null) {
+      return null;
+    }
+
+    return BudgetModel.fromFirestore(document.id, document.data()!);
+  }
+
+  Future<void> updateBudget(BudgetModel budget) async {
+    final budgetId = budget.id;
+
+    if (budgetId == null || budgetId.isEmpty) {
+      throw ArgumentError('Budget ID is required.');
+    }
+
+    await _budgets.doc(budgetId).update(budget.toFirestore());
+  }
+
+  Future<void> deleteBudget(String budgetId) async {
+    if (budgetId.trim().isEmpty) {
+      throw ArgumentError('Budget ID is required.');
+    }
+
+    await _budgets.doc(budgetId).delete();
+  }
+
+  /// Sums real `transactions` (type == expense) for [categoryId] between
+  /// [start] and [end] (inclusive, 'YYYY-MM-DD'). Budgets never store a
+  /// spent amount — it's always computed from actual transaction history,
+  /// so it stays correct as transactions are added, edited, or deleted.
+  Future<double> getSpentForCategoryInRange(
+    String categoryId,
+    String start,
+    String end,
+  ) async {
+    final snapshot = await _transactions
+        .where('userId', isEqualTo: _currentUserId)
+        .where('type', isEqualTo: 'expense')
+        .where('categoryId', isEqualTo: categoryId)
+        .where('date', isGreaterThanOrEqualTo: start)
+        .where('date', isLessThanOrEqualTo: end)
+        .get();
+
+    double total = 0;
+    for (final document in snapshot.docs) {
+      total += (document.data()['amount'] as num?)?.toDouble() ?? 0;
+    }
+
+    return total;
+  }
+
+  /// The individual expenses behind [getSpentForCategoryInRange] — same
+  /// filters, same composite index, but the documents rather than their sum.
+  /// Used by the insights page, which needs the largest single transaction in
+  /// a category as well as its total.
+  Future<List<TransactionModel>> getTransactionsForCategoryInRange(
+    String categoryId,
+    String start,
+    String end,
+  ) async {
+    final snapshot = await _transactions
+        .where('userId', isEqualTo: _currentUserId)
+        .where('type', isEqualTo: 'expense')
+        .where('categoryId', isEqualTo: categoryId)
+        .where('date', isGreaterThanOrEqualTo: start)
+        .where('date', isLessThanOrEqualTo: end)
+        .get();
+
+    return snapshot.docs
+        .map((document) =>
+            TransactionModel.fromFirestore(document.id, document.data()))
+        .toList();
+  }
+
+  // ============================================================
+  // GOALS
+  // ============================================================
+
+  Future<String> addGoal(GoalModel goal) async {
+    if (goal.goalName.trim().isEmpty) {
+      throw ArgumentError('Goal name cannot be empty.');
+    }
+
+    final document = await _goals.add(goal.toFirestore());
+    return document.id;
+  }
+
+  Future<List<GoalModel>> getGoals() async {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _goals;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    final snapshot = await query.get();
+
+    final goals = snapshot.docs
+        .map((document) => GoalModel.fromFirestore(document.id, document.data()))
+        .toList();
+
+    goals.sort((first, second) => second.createdDate.compareTo(first.createdDate));
+    return goals;
+  }
+
+  Stream<List<GoalModel>> watchGoals() {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _goals;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    return query.snapshots().map((snapshot) {
+      final goals = snapshot.docs
+          .map((document) => GoalModel.fromFirestore(document.id, document.data()))
+          .toList();
+
+      goals.sort((first, second) => second.createdDate.compareTo(first.createdDate));
+      return goals;
+    });
+  }
+
+  Future<GoalModel?> getGoalById(String goalId) async {
+    if (goalId.trim().isEmpty) {
+      return null;
+    }
+
+    final document = await _goals.doc(goalId).get();
+
+    if (!document.exists || document.data() == null) {
+      return null;
+    }
+
+    return GoalModel.fromFirestore(document.id, document.data()!);
+  }
+
+  Future<void> updateGoal(GoalModel goal) async {
+    final goalId = goal.id;
+
+    if (goalId == null || goalId.isEmpty) {
+      throw ArgumentError('Goal ID is required.');
+    }
+
+    await _goals.doc(goalId).update(goal.toFirestore());
+  }
+
+  Future<void> deleteGoal(String goalId) async {
+    if (goalId.trim().isEmpty) {
+      throw ArgumentError('Goal ID is required.');
+    }
+
+    await _goals.doc(goalId).delete();
+  }
+
+  /// Records a deposit/withdrawal and adjusts the goal's currentAmount in
+  /// the same transaction (mirrors how account balances are adjusted
+  /// alongside a transaction in addTransaction). Marks the goal completed
+  /// when currentAmount reaches targetAmount.
+  Future<GoalModel> addGoalTransaction(GoalTransactionModel goalTransaction) async {
+    final goalReference = _goals.doc(goalTransaction.goalId);
+    final transactionReference = _goalTransactions.doc();
+
+    return _firestore.runTransaction<GoalModel>((firestoreTransaction) async {
+      final goalSnapshot = await firestoreTransaction.get(goalReference);
+
+      if (!goalSnapshot.exists || goalSnapshot.data() == null) {
+        throw StateError('The goal does not exist.');
+      }
+
+      final goal = GoalModel.fromFirestore(goalSnapshot.id, goalSnapshot.data()!);
+
+      final delta = goalTransaction.type == 'deposit'
+          ? goalTransaction.amount
+          : -goalTransaction.amount;
+
+      final newAmount = (goal.currentAmount + delta).clamp(0, double.infinity).toDouble();
+      final newStatus = newAmount >= goal.targetAmount ? 'completed' : goal.status;
+
+      firestoreTransaction.set(transactionReference, goalTransaction.toFirestore());
+      firestoreTransaction.update(goalReference, {
+        'currentAmount': newAmount,
+        'status': newStatus,
+      });
+
+      return goal.copyWith(currentAmount: newAmount, status: newStatus);
+    });
+  }
+
+  Future<List<GoalTransactionModel>> getGoalTransactions(String goalId) async {
+    final snapshot = await _goalTransactions.where('goalId', isEqualTo: goalId).get();
+
+    final transactions = snapshot.docs
+        .map((document) => GoalTransactionModel.fromFirestore(document.id, document.data()))
+        .toList();
+
+    transactions.sort((first, second) => second.createdAt.compareTo(first.createdAt));
+    return transactions;
+  }
+
+  // ============================================================
+  // RECURRING EXPENSES
+  // ============================================================
+
+  Future<String> addRecurringExpense(RecurringExpenseModel expense) async {
+    if (expense.name.trim().isEmpty) {
+      throw ArgumentError('Recurring expense name cannot be empty.');
+    }
+
+    final document = await _recurringExpenses.add(expense.toFirestore());
+    return document.id;
+  }
+
+  Future<List<RecurringExpenseModel>> getRecurringExpenses() async {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _recurringExpenses;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    final snapshot = await query.get();
+
+    final expenses = snapshot.docs
+        .map((document) => RecurringExpenseModel.fromFirestore(document.id, document.data()))
+        .toList();
+
+    expenses.sort((first, second) => first.nextDueDate.compareTo(second.nextDueDate));
+    return expenses;
+  }
+
+  Stream<List<RecurringExpenseModel>> watchRecurringExpenses() {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _recurringExpenses;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    return query.snapshots().map((snapshot) {
+      final expenses = snapshot.docs
+          .map((document) => RecurringExpenseModel.fromFirestore(document.id, document.data()))
+          .toList();
+
+      expenses.sort((first, second) => first.nextDueDate.compareTo(second.nextDueDate));
+      return expenses;
+    });
+  }
+
+  Future<RecurringExpenseModel?> getRecurringExpenseById(String expenseId) async {
+    if (expenseId.trim().isEmpty) {
+      return null;
+    }
+
+    final document = await _recurringExpenses.doc(expenseId).get();
+
+    if (!document.exists || document.data() == null) {
+      return null;
+    }
+
+    return RecurringExpenseModel.fromFirestore(document.id, document.data()!);
+  }
+
+  Future<void> updateRecurringExpense(RecurringExpenseModel expense) async {
+    final expenseId = expense.id;
+
+    if (expenseId == null || expenseId.isEmpty) {
+      throw ArgumentError('Recurring expense ID is required.');
+    }
+
+    await _recurringExpenses.doc(expenseId).update(expense.toFirestore());
+  }
+
+  Future<void> deleteRecurringExpense(String expenseId) async {
+    if (expenseId.trim().isEmpty) {
+      throw ArgumentError('Recurring expense ID is required.');
+    }
+
+    await _recurringExpenses.doc(expenseId).delete();
+  }
+
+  Future<List<RecurringPaymentModel>> getRecurringPayments(String expenseId) async {
+    final snapshot = await _recurringPayments.where('expenseId', isEqualTo: expenseId).get();
+
+    final payments = snapshot.docs
+        .map((document) => RecurringPaymentModel.fromFirestore(document.id, document.data()))
+        .toList();
+
+    payments.sort((first, second) => second.paymentDate.compareTo(first.paymentDate));
+    return payments;
+  }
+
+  /// Records this cycle's payment as a real transaction (via [addTransaction],
+  /// so the account balance updates exactly like a manual expense would),
+  /// logs it in `recurringPayments`, and advances `nextDueDate` by the
+  /// expense's frequency.
+  Future<void> markRecurringPaid(String expenseId) async {
+    final expense = await getRecurringExpenseById(expenseId);
+    if (expense == null) {
+      throw StateError('The recurring expense does not exist.');
+    }
+
+    final now = DateTime.now();
+    final todayString = PeriodCalculator.formatDate(now);
+
+    final transaction = TransactionModel(
+      userId: expense.userId,
+      amount: expense.amount,
+      type: 'expense',
+      categoryId: expense.categoryId,
+      accountId: expense.accountId,
+      note: 'Recurring: ${expense.name}',
+      receiptPath: null,
+      date: todayString,
+      time: '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+      createdAt: now.millisecondsSinceEpoch,
+    );
+
+    final transactionId = await addTransaction(transaction);
+
+    await _recurringPayments.add(
+      RecurringPaymentModel(
+        expenseId: expenseId,
+        transactionId: transactionId,
+        paymentDate: todayString,
+        amount: expense.amount,
+        status: 'paid',
+      ).toFirestore(),
+    );
+
+    final currentDue = expense.nextDueDate.isNotEmpty
+        ? PeriodCalculator.parseDate(expense.nextDueDate)
+        : now;
+    final anchor = currentDue.isBefore(now) ? now : currentDue;
+    final nextDue = advanceDate(anchor, expense.frequency);
+
+    await updateRecurringExpense(
+      expense.copyWith(nextDueDate: PeriodCalculator.formatDate(nextDue)),
+    );
+  }
+
+  // ============================================================
+  // LENDINGS (money lent out, expected back)
+  // ============================================================
+
+  Future<String> addLending(LendingModel lending) async {
+    if (lending.name.trim().isEmpty) {
+      throw ArgumentError('Lending name cannot be empty.');
+    }
+
+    final documentRef = _lendings.doc();
+
+    if (lending.accountId != null && lending.accountId!.isNotEmpty) {
+      // A *new* lending: money leaves the selected account.
+      final accountRef = _accounts.doc(lending.accountId);
+      await _firestore.runTransaction((transaction) async {
+        final accountSnapshot = await transaction.get(accountRef);
+        if (!accountSnapshot.exists || accountSnapshot.data() == null) {
+          throw StateError('The selected account does not exist.');
+        }
+        final currentBalance = (accountSnapshot.data()!['balance'] as num?)?.toDouble() ?? 0;
+        transaction.update(accountRef, {'balance': currentBalance - lending.totalAmount});
+        transaction.set(documentRef, lending.toFirestore());
+      });
+    } else {
+      await documentRef.set(lending.toFirestore());
+    }
+
+    return documentRef.id;
+  }
+
+  Future<List<LendingModel>> getLendings() async {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _lendings;
+    if (userId != null) query = query.where('userId', isEqualTo: userId);
+
+    final snapshot = await query.get();
+    final lendings = snapshot.docs
+        .map((document) => LendingModel.fromFirestore(document.id, document.data()))
+        .toList();
+
+    lendings.sort((first, second) => second.createdDate.compareTo(first.createdDate));
+    return lendings;
+  }
+
+  Future<LendingModel?> getLendingById(String lendingId) async {
+    if (lendingId.trim().isEmpty) return null;
+
+    final document = await _lendings.doc(lendingId).get();
+    if (!document.exists || document.data() == null) return null;
+
+    return LendingModel.fromFirestore(document.id, document.data()!);
+  }
+
+  Future<void> updateLending(LendingModel lending) async {
+    final lendingId = lending.id;
+    if (lendingId == null || lendingId.isEmpty) {
+      throw ArgumentError('Lending ID is required.');
+    }
+    await _lendings.doc(lendingId).update(lending.toFirestore());
+  }
+
+  Future<void> deleteLending(String lendingId) async {
+    if (lendingId.trim().isEmpty) {
+      throw ArgumentError('Lending ID is required.');
+    }
+    await _lendings.doc(lendingId).delete();
+  }
+
+  /// Records a repayment received against a lending, bumps its
+  /// receivedAmount, and — if the lending has a linked account — credits
+  /// that account, all in one Firestore transaction.
+  Future<void> addLendingRepayment(LendingRepaymentModel repayment) async {
+    final lendingRef = _lendings.doc(repayment.lendingId);
+    final repaymentRef = _lendingRepayments.doc();
+
+    await _firestore.runTransaction((transaction) async {
+      final lendingSnapshot = await transaction.get(lendingRef);
+      if (!lendingSnapshot.exists || lendingSnapshot.data() == null) {
+        throw StateError('The lending does not exist.');
+      }
+      final lending = LendingModel.fromFirestore(lendingSnapshot.id, lendingSnapshot.data()!);
+      final newReceived = lending.receivedAmount + repayment.amount;
+
+      DocumentReference<Map<String, dynamic>>? accountRef;
+      double? newBalance;
+      if (lending.accountId != null && lending.accountId!.isNotEmpty) {
+        accountRef = _accounts.doc(lending.accountId);
+        final accountSnapshot = await transaction.get(accountRef);
+        if (accountSnapshot.exists && accountSnapshot.data() != null) {
+          final currentBalance = (accountSnapshot.data()!['balance'] as num?)?.toDouble() ?? 0;
+          newBalance = currentBalance + repayment.amount;
+        }
+      }
+
+      transaction.set(repaymentRef, repayment.toFirestore());
+      transaction.update(lendingRef, {'receivedAmount': newReceived});
+      if (accountRef != null && newBalance != null) {
+        transaction.update(accountRef, {'balance': newBalance});
+      }
+    });
+  }
+
+  Future<List<LendingRepaymentModel>> getLendingRepayments(String lendingId) async {
+    final snapshot = await _lendingRepayments.where('lendingId', isEqualTo: lendingId).get();
+    final repayments = snapshot.docs
+        .map((document) => LendingRepaymentModel.fromFirestore(document.id, document.data()))
+        .toList();
+
+    repayments.sort((first, second) => second.createdAt.compareTo(first.createdAt));
+    return repayments;
+  }
+
+  // ============================================================
+  // LOANS (money borrowed, owed back) — bank or personal
+  // ============================================================
+
+  Future<String> addLoan(LoanModel loan) async {
+    if (loan.name.trim().isEmpty) {
+      throw ArgumentError('Loan name cannot be empty.');
+    }
+
+    final documentRef = _loans.doc();
+
+    if (loan.accountId != null && loan.accountId!.isNotEmpty) {
+      // A *new* loan: borrowed money arrives into the selected account.
+      final accountRef = _accounts.doc(loan.accountId);
+      await _firestore.runTransaction((transaction) async {
+        final accountSnapshot = await transaction.get(accountRef);
+        if (!accountSnapshot.exists || accountSnapshot.data() == null) {
+          throw StateError('The selected account does not exist.');
+        }
+        final currentBalance = (accountSnapshot.data()!['balance'] as num?)?.toDouble() ?? 0;
+        transaction.update(accountRef, {'balance': currentBalance + loan.totalAmount});
+        transaction.set(documentRef, loan.toFirestore());
+      });
+    } else {
+      await documentRef.set(loan.toFirestore());
+    }
+
+    return documentRef.id;
+  }
+
+  Future<List<LoanModel>> getLoans() async {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _loans;
+    if (userId != null) query = query.where('userId', isEqualTo: userId);
+
+    final snapshot = await query.get();
+    final loans = snapshot.docs
+        .map((document) => LoanModel.fromFirestore(document.id, document.data()))
+        .toList();
+
+    loans.sort((first, second) => second.createdDate.compareTo(first.createdDate));
+    return loans;
+  }
+
+  Future<LoanModel?> getLoanById(String loanId) async {
+    if (loanId.trim().isEmpty) return null;
+
+    final document = await _loans.doc(loanId).get();
+    if (!document.exists || document.data() == null) return null;
+
+    return LoanModel.fromFirestore(document.id, document.data()!);
+  }
+
+  Future<void> updateLoan(LoanModel loan) async {
+    final loanId = loan.id;
+    if (loanId == null || loanId.isEmpty) {
+      throw ArgumentError('Loan ID is required.');
+    }
+    await _loans.doc(loanId).update(loan.toFirestore());
+  }
+
+  Future<void> deleteLoan(String loanId) async {
+    if (loanId.trim().isEmpty) {
+      throw ArgumentError('Loan ID is required.');
+    }
+    await _loans.doc(loanId).delete();
+  }
+
+  /// Records a payment made against a loan, bumps its paidAmount, advances
+  /// a bank loan's nextDueDate by one month, and — if the loan has a
+  /// linked account — debits that account, all in one transaction.
+  Future<void> addLoanPayment(LoanPaymentModel payment) async {
+    final loanRef = _loans.doc(payment.loanId);
+    final paymentRef = _loanPayments.doc();
+
+    await _firestore.runTransaction((transaction) async {
+      final loanSnapshot = await transaction.get(loanRef);
+      if (!loanSnapshot.exists || loanSnapshot.data() == null) {
+        throw StateError('The loan does not exist.');
+      }
+      final loan = LoanModel.fromFirestore(loanSnapshot.id, loanSnapshot.data()!);
+      final newPaid = loan.paidAmount + payment.amount;
+
+      DocumentReference<Map<String, dynamic>>? accountRef;
+      double? newBalance;
+      if (loan.accountId != null && loan.accountId!.isNotEmpty) {
+        accountRef = _accounts.doc(loan.accountId);
+        final accountSnapshot = await transaction.get(accountRef);
+        if (accountSnapshot.exists && accountSnapshot.data() != null) {
+          final currentBalance = (accountSnapshot.data()!['balance'] as num?)?.toDouble() ?? 0;
+          newBalance = currentBalance - payment.amount;
+        }
+      }
+
+      String? nextDue = loan.nextDueDate;
+      if (loan.isBank && loan.monthlyPaymentDay != null) {
+        final current = (nextDue != null && nextDue.isNotEmpty)
+            ? PeriodCalculator.parseDate(nextDue)
+            : PeriodCalculator.parseDate(loan.startDate);
+        final advanced = DateTime(current.year, current.month + 1, loan.monthlyPaymentDay!);
+        nextDue = PeriodCalculator.formatDate(advanced);
+      }
+
+      transaction.set(paymentRef, payment.toFirestore());
+      transaction.update(loanRef, {
+        'paidAmount': newPaid,
+        if (nextDue != loan.nextDueDate) 'nextDueDate': nextDue,
+      });
+      if (accountRef != null && newBalance != null) {
+        transaction.update(accountRef, {'balance': newBalance});
+      }
+    });
+  }
+
+  Future<List<LoanPaymentModel>> getLoanPayments(String loanId) async {
+    final snapshot = await _loanPayments.where('loanId', isEqualTo: loanId).get();
+    final payments = snapshot.docs
+        .map((document) => LoanPaymentModel.fromFirestore(document.id, document.data()))
+        .toList();
+
+    payments.sort((first, second) => second.createdAt.compareTo(first.createdAt));
+    return payments;
+  }
+
+  // ============================================================
+  // TRANSFERS (move money between two of the user's own accounts)
+  // ============================================================
+
+  /// Moves [transfer.amount] (plus any [transfer.fee]) out of the source
+  /// account and [transfer.amount] into the destination account, and logs
+  /// the transfer, all in one Firestore transaction — mirrors how
+  /// [addTransaction] keeps account balances and history in sync.
+  Future<String> addTransfer(TransferModel transfer) async {
+    if (transfer.fromAccountId.trim().isEmpty ||
+        transfer.toAccountId.trim().isEmpty) {
+      throw ArgumentError('Both accounts are required.');
+    }
+
+    if (transfer.fromAccountId == transfer.toAccountId) {
+      throw ArgumentError('Choose two different accounts.');
+    }
+
+    if (transfer.amount <= 0) {
+      throw ArgumentError('Transfer amount must be greater than zero.');
+    }
+
+    final transferReference = _transfers.doc();
+    final fromReference = _accounts.doc(transfer.fromAccountId);
+    final toReference = _accounts.doc(transfer.toAccountId);
+
+    await _firestore.runTransaction((firestoreTransaction) async {
+      final fromSnapshot = await firestoreTransaction.get(fromReference);
+      final toSnapshot = await firestoreTransaction.get(toReference);
+
+      if (!fromSnapshot.exists || fromSnapshot.data() == null) {
+        throw StateError('The source account does not exist.');
+      }
+
+      if (!toSnapshot.exists || toSnapshot.data() == null) {
+        throw StateError('The destination account does not exist.');
+      }
+
+      final fromBalance =
+          (fromSnapshot.data()!['balance'] as num?)?.toDouble() ?? 0;
+      final toBalance =
+          (toSnapshot.data()!['balance'] as num?)?.toDouble() ?? 0;
+
+      firestoreTransaction.update(fromReference, {
+        'balance': fromBalance - transfer.amount - transfer.fee,
+      });
+      firestoreTransaction.update(toReference, {
+        'balance': toBalance + transfer.amount,
+      });
+      firestoreTransaction.set(transferReference, transfer.toFirestore());
+    });
+
+    return transferReference.id;
+  }
+
+  Future<List<TransferModel>> getTransfers() async {
+    final userId = _currentUserId;
+    Query<Map<String, dynamic>> query = _transfers;
+
+    if (userId != null) {
+      query = query.where('userId', isEqualTo: userId);
+    }
+
+    final snapshot = await query.get();
+
+    final transfers = snapshot.docs.map((document) {
+      return TransferModel.fromFirestore(document.id, document.data());
+    }).toList();
+
+    transfers.sort(
+      (first, second) => second.createdAt.compareTo(first.createdAt),
+    );
+
+    return transfers;
   }
 }

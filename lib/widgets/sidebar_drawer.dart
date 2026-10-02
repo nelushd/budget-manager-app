@@ -1,11 +1,32 @@
 import 'package:flutter/material.dart';
+
+import '../services/auth_service.dart';
+import '../pages/goals/goals_dashboard_page.dart';
+import '../pages/lending/lendings_list_page.dart';
+import '../pages/loan/loans_list_page.dart';
 import '../pages/profile_page.dart';
+import '../pages/recurring/recurring_list_page.dart';
+import '../pages/sms/sms_parser_page.dart';
+
+/// Dark palette matching Home/Analytics/Credit Cards — the drawer slides in
+/// over every tab, so it stays dark permanently rather than following
+/// whichever tab happened to open it.
+class _Dark {
+  _Dark._();
+  static const Color bg = Color(0xFF0B0F14);
+  static const Color card = Color(0xFF141B24);
+  static const Color accent = Color(0xFF2DD4A7);
+  static const Color textPrimary = Colors.white;
+  static const Color textSecondary = Color(0xFF9CA3AF);
+  static const Color error = Color(0xFFF87171);
+}
 
 class SidebarDrawer extends StatelessWidget {
   final String userName;
   final String userEmail;
+  final AuthService _authService = AuthService();
 
-  const SidebarDrawer({
+  SidebarDrawer({
     super.key,
     required this.userName,
     required this.userEmail,
@@ -14,12 +35,13 @@ class SidebarDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
+      backgroundColor: _Dark.bg,
       child: SafeArea(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             Material(
-              color: Colors.black,
+              color: _Dark.card,
               child: InkWell(
                 onTap: () {
                   Navigator.pop(context);
@@ -35,15 +57,15 @@ class SidebarDrawer extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 30,
-                        backgroundColor: Colors.white,
+                        backgroundColor: _Dark.accent,
                         child: Text(
-                          'N',
-                          style: TextStyle(
+                          userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            color: _Dark.bg,
                           ),
                         ),
                       ),
@@ -52,7 +74,7 @@ class SidebarDrawer extends StatelessWidget {
                         userName,
                         textAlign: TextAlign.left,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: _Dark.textPrimary,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
@@ -62,7 +84,7 @@ class SidebarDrawer extends StatelessWidget {
                         userEmail,
                         textAlign: TextAlign.left,
                         style: const TextStyle(
-                          color: Colors.white70,
+                          color: _Dark.textSecondary,
                           fontSize: 13,
                         ),
                       ),
@@ -70,6 +92,10 @@ class SidebarDrawer extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: _smsParserHighlight(context),
             ),
             _sectionHeader('Finance'),
             _menuTile(
@@ -81,11 +107,6 @@ class SidebarDrawer extends StatelessWidget {
             _sectionHeader('Planning'),
             _menuTile(
               context,
-              icon: Icons.calendar_month,
-              title: 'Monthly Plan',
-            ),
-            _menuTile(
-              context,
               icon: Icons.subscriptions,
               title: 'Subscription',
             ),
@@ -93,6 +114,37 @@ class SidebarDrawer extends StatelessWidget {
               context,
               icon: Icons.repeat,
               title: 'Recurring Expenses',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RecurringListPage()),
+              ),
+            ),
+            _menuTile(
+              context,
+              icon: Icons.flag_outlined,
+              title: 'Goals',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GoalsDashboardPage()),
+              ),
+            ),
+            _menuTile(
+              context,
+              icon: Icons.north_east_rounded,
+              title: 'Lendings',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LendingsListPage()),
+              ),
+            ),
+            _menuTile(
+              context,
+              icon: Icons.account_balance_outlined,
+              title: 'Loans',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoansListPage()),
+              ),
             ),
             const SizedBox(height: 12),
             _sectionHeader('Accounts'),
@@ -111,8 +163,69 @@ class SidebarDrawer extends StatelessWidget {
               icon: Icons.logout,
               title: 'Logout',
               destructive: true,
+              onTap: () async {
+                await _authService.signOut();
+              },
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _smsParserHighlight(BuildContext context) {
+    return Material(
+      color: _Dark.accent.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SmsParserPage()),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _Dark.accent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.document_scanner_outlined,
+                  color: _Dark.bg,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'SMS Parser',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: _Dark.accent,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Paste a bank SMS to add a transaction',
+                      style: TextStyle(fontSize: 11, color: _Dark.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: _Dark.accent),
+            ],
+          ),
         ),
       ),
     );
@@ -126,7 +239,7 @@ class SidebarDrawer extends StatelessWidget {
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
-          color: Colors.black54,
+          color: _Dark.textSecondary,
           letterSpacing: 0.6,
         ),
       ),
@@ -138,21 +251,25 @@ class SidebarDrawer extends StatelessWidget {
     required IconData icon,
     required String title,
     bool destructive = false,
+    Widget? trailing,
+    VoidCallback? onTap,
   }) {
     return ListTile(
       leading: Icon(
         icon,
-        color: destructive ? Colors.red : Colors.black87,
+        color: destructive ? _Dark.error : _Dark.textPrimary,
       ),
       title: Text(
         title,
         style: TextStyle(
-          color: destructive ? Colors.red : Colors.black87,
+          color: destructive ? _Dark.error : _Dark.textPrimary,
           fontWeight: FontWeight.w500,
         ),
       ),
+      trailing: trailing,
       onTap: () {
         Navigator.pop(context);
+        onTap?.call();
       },
     );
   }

@@ -1,5 +1,6 @@
 // Helper functions for the app
 
+
 class Helpers {
   // Check if email is valid
   static bool isValidEmail(String email) {

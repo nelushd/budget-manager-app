@@ -1,8 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/firestore_service.dart';
 import '../../models/category_model.dart';
-import '../../utils/category_icon.dart';
+
+/// Common icon used for every manually created category — users don't pick
+/// an icon anymore, keeping category creation to just a name.
+const String kDefaultCategoryIconName = 'category';
+
+/// Dark palette matching Home/Analytics/Transactions/Add Transaction/SMS Parser.
+class _Dark {
+  _Dark._();
+  static const Color bg = Color(0xFF0B0F14);
+  static const Color card = Color(0xFF1B2430);
+  static const Color textPrimary = Colors.white;
+  static const Color textSecondary = Color(0xFF9CA3AF);
+  static const Color divider = Color(0xFF2E3A4A);
+}
 
 class CreateCategoryPage extends StatefulWidget {
   final String transactionType; // income or expense
@@ -21,64 +35,12 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
   final nameController = TextEditingController();
 
   late String type;
-  String selectedIconName = 'category';
-
-  final List<String> incomeIcons = [
-    'payments',
-    'laptop_mac',
-    'business_center',
-    'trending_up',
-    'workspace_premium',
-    'computer',
-    'card_giftcard',
-    'home_work',
-    'account_balance',
-    'assignment_return',
-    'savings',
-  ];
-
-  final List<String> expenseIcons = [
-    'home',
-    'electric_bolt',
-    'water_drop',
-    'local_fire_department',
-    'delete_outline',
-    'shopping_cart',
-    'smartphone',
-    'wifi',
-    'tv',
-    'cleaning_services',
-    'directions_bus',
-    'local_gas_station',
-    'directions_car',
-    'local_parking',
-    'school',
-    'menu_book',
-    'sports_soccer',
-    'medical_services',
-    'medication',
-    'health_and_safety',
-    'masks',
-    'checkroom',
-    'content_cut',
-    'fitness_center',
-    'restaurant',
-    'movie',
-    'flight',
-    'palette',
-    'credit_card',
-    'savings',
-    'card_giftcard',
-    'warning_amber',
-    'subscriptions',
-    'account_balance',
-  ];
+  bool isSaving = false;
 
   @override
   void initState() {
     super.initState();
     type = widget.transactionType;
-    selectedIconName = type == 'income' ? 'payments' : 'shopping_cart';
   }
 
   Future<void> _saveCategory() async {
@@ -86,10 +48,13 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
 
     if (name.isEmpty) return;
 
+    setState(() => isSaving = true);
+
     final category = CategoryModel(
+      userId: FirebaseAuth.instance.currentUser?.uid ?? '',
       name: name,
       type: type,
-      iconName: selectedIconName,
+      iconName: kDefaultCategoryIconName,
       isDefault: false,
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );
@@ -112,15 +77,14 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
     final accentColor =
         isIncome ? const Color(0xFF22C55E) : const Color(0xFFEF4444);
 
-    final iconList = isIncome ? incomeIcons : expenseIcons;
     final title = isIncome ? 'Create Income Category' : 'Create Expense Category';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _Dark.bg,
       appBar: AppBar(
         title: Text(title),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: _Dark.bg,
+        foregroundColor: _Dark.textPrimary,
         elevation: 0,
         centerTitle: true,
       ),
@@ -134,82 +98,43 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
+                color: _Dark.textPrimary,
               ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: nameController,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: _Dark.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Enter category name',
+                hintStyle: const TextStyle(color: _Dark.textSecondary),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: _Dark.card,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderSide: const BorderSide(color: _Dark.divider),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderSide: const BorderSide(color: _Dark.divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: accentColor),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Choose Icon',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Expanded(
-              child: GridView.builder(
-                itemCount: iconList.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 5,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
-                itemBuilder: (context, index) {
-                  final iconName = iconList[index];
-                  final isSelected = selectedIconName == iconName;
-
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedIconName = iconName;
-                      });
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? accentColor.withValues(alpha: 0.12)
-                            : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected ? accentColor : Colors.grey[300]!,
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
-                      child: Icon(
-                        getCategoryIcon(iconName),
-                        color: isSelected ? accentColor : Colors.black,
-                        size: 28,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 28),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black,
-                      side: BorderSide(color: Colors.grey[300]!),
+                      foregroundColor: _Dark.textPrimary,
+                      side: const BorderSide(color: _Dark.divider),
                       minimumSize: const Size.fromHeight(54),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -221,10 +146,14 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _saveCategory,
+                    onPressed: isSaving || nameController.text.trim().isEmpty
+                        ? null
+                        : _saveCategory,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: _Dark.card,
+                      disabledForegroundColor: _Dark.textSecondary,
                       minimumSize: const Size.fromHeight(54),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),

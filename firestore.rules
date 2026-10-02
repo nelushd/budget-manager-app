@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(data) {
+      return isSignedIn() && data.userId == request.auth.uid;
+    }
+
+    function isUserScopedCollection(collection) {
+      return collection in [
+        'accounts', 'budgets', 'categories', 'goals',
+        'lendings', 'loans', 'recurringExpenses', 'transactions', 'transfers'
+      ];
+    }
+
+    // These sub-entities (deposits/repayments/payments tied to a parent
+    // goal/lending/loan/recurring-expense) don't carry their own userId
+    // field — they're only ever reached through a parent id the querying
+    // user must already own, so signed-in-only is the right scope here.
+    function isSignedInSubCollection(collection) {
+      return collection in [
+        'goalTransactions', 'lendingRepayments', 'loanPayments', 'recurringPayments'
+      ];
+    }
+
+    // The signup profile doc — keyed by uid itself (not a userId field), so
+    // it gets its own rule rather than fitting the generic isOwner() pattern.
+    match /users/{uid} {
+      allow read, create, update, delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Public username -> email/uid lookup, used by the login screen to
+    // resolve a username to the email Firebase Auth actually signs in with.
+    // Must be readable while signed out (that's the whole point of a login
+    // screen), and a user may only claim or touch the mapping for their own
+    // account.
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // Common categories (Salary, Rent, Groceries, ...) are shared reference
+    // data, not any one user's — stored as ordinary 'categories' docs with
+    // this sentinel userId so every signed-in user can read them without
+    // needing their own private copy. A user's own real categories (custom
+    // ones, or pre-existing per-user docs) still go through isOwner().
+    function isGlobalCategory(data) {
+      return data.userId == '__global__';
+    }
+
+    match /{collection}/{docId} {
+      allow read: if (isUserScopedCollection(collection) && (isOwner(resource.data) || (collection == 'categories' && isGlobalCategory(resource.data))))
+          || (isSignedInSubCollection(collection) && isSignedIn());
+      allow update, delete: if (isUserScopedCollection(collection) && isOwner(resource.data))
+          || (isSignedInSubCollection(collection) && isSignedIn());
+      allow create: if (isUserScopedCollection(collection) && (isOwner(request.resource.data) || (collection == 'categories' && isGlobalCategory(request.resource.data) && isSignedIn())))
+          || (isSignedInSubCollection(collection) && isSignedIn());
+    }
+  }
+}

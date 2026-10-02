@@ -3,6 +3,17 @@ import 'package:budget_manager_app/models/category_model.dart';
 import 'package:budget_manager_app/services/firestore_service.dart';
 import 'package:budget_manager_app/utils/category_icon.dart';
 
+/// Dark palette matching Home/Analytics/Transactions/Add Transaction/SMS Parser.
+class _Dark {
+  _Dark._();
+  static const Color bg = Color(0xFF0B0F14);
+  static const Color card = Color(0xFF1B2430);
+  static const Color accent = Color(0xFF2DD4A7);
+  static const Color textPrimary = Colors.white;
+  static const Color textSecondary = Color(0xFF9CA3AF);
+  static const Color divider = Color(0xFF2E3A4A);
+}
+
 Future<dynamic> showCategorySelectionModal(
   BuildContext context, {
   CategoryModel? selectedCategory,
@@ -45,7 +56,7 @@ Future<dynamic> showCategorySelectionModal(
   return showModalBottomSheet<dynamic>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: _Dark.bg,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(20),
@@ -122,7 +133,7 @@ class _CategorySelectionModalState
                 width: 48,
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: _Dark.divider,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -137,6 +148,7 @@ class _CategorySelectionModalState
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: _Dark.textPrimary,
                     ),
                   ),
                 ),
@@ -146,11 +158,13 @@ class _CategorySelectionModalState
                   },
                   icon: const Icon(
                     Icons.add,
-                    color: Colors.white,
+                    color: _Dark.bg,
                   ),
                   label: const Text('Create'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: _Dark.accent,
+                    foregroundColor: _Dark.bg,
+                    textStyle: const TextStyle(fontWeight: FontWeight.w800),
                     shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(24),
@@ -163,16 +177,24 @@ class _CategorySelectionModalState
             TextField(
               controller: searchController,
               onChanged: _filterCategories,
+              style: const TextStyle(color: _Dark.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Search categories',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(color: _Dark.textSecondary),
+                prefixIcon: const Icon(Icons.search, color: _Dark.textSecondary),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: _Dark.card,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Colors.grey[300]!,
-                  ),
+                  borderSide: const BorderSide(color: _Dark.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _Dark.divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _Dark.accent),
                 ),
               ),
             ),
@@ -183,7 +205,7 @@ class _CategorySelectionModalState
                   width: 4,
                   height: 20,
                   decoration: BoxDecoration(
-                    color: Colors.green,
+                    color: _Dark.accent,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -193,6 +215,7 @@ class _CategorySelectionModalState
                   style: TextStyle(
                     letterSpacing: 1.2,
                     fontWeight: FontWeight.w600,
+                    color: _Dark.textSecondary,
                   ),
                 ),
               ],
@@ -203,6 +226,7 @@ class _CategorySelectionModalState
                   ? const Center(
                       child: Text(
                         'No categories found',
+                        style: TextStyle(color: _Dark.textSecondary),
                       ),
                     )
                   : GridView.count(
@@ -230,16 +254,16 @@ class _CategorySelectionModalState
                                 height: 72,
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? Colors.green.shade100
-                                      : Colors.grey[200],
+                                      ? _Dark.accent.withValues(alpha: 0.16)
+                                      : _Dark.card,
                                   borderRadius:
                                       BorderRadius.circular(16),
-                                  border: isSelected
-                                      ? Border.all(
-                                          color: Colors.green,
-                                          width: 2,
-                                        )
-                                      : null,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? _Dark.accent
+                                        : _Dark.divider,
+                                    width: isSelected ? 2 : 1,
+                                  ),
                                 ),
                                 child: Center(
                                   child: Icon(
@@ -248,8 +272,8 @@ class _CategorySelectionModalState
                                     ),
                                     size: 30,
                                     color: isSelected
-                                        ? Colors.green
-                                        : Colors.black87,
+                                        ? _Dark.accent
+                                        : _Dark.textSecondary,
                                   ),
                                 ),
                               ),
@@ -257,8 +281,9 @@ class _CategorySelectionModalState
                               Text(
                                 category.name,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
+                                  color: isSelected ? _Dark.textPrimary : _Dark.textSecondary,
                                 ),
                                 maxLines: 2,
                                 overflow:
@@ -282,4 +307,3 @@ class _CategorySelectionModalState
     super.dispose();
   }
 }
-

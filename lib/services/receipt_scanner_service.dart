@@ -12,10 +12,6 @@ class ReceiptScannerService {
 
   final ImagePicker _imagePicker = ImagePicker();
 
-  // ==========================================================
-  // Camera / Gallery — UNCHANGED
-  // ==========================================================
-
   Future<ReceiptScanResult?> scanFromCamera() async {
     return _pickAndProcessImage(ImageSource.camera);
   }
@@ -40,10 +36,6 @@ class ReceiptScannerService {
     return processImage(selectedImage.path);
   }
 
-  // ==========================================================
-  // processImage() — pass the whole RecognizedText object
-  // ==========================================================
-
   Future<ReceiptScanResult> processImage(
     String imagePath,
   ) async {
@@ -58,29 +50,16 @@ class ReceiptScannerService {
       final RecognizedText recognizedText =
           await textRecognizer.processImage(inputImage);
 
-      // ===== ADD THESE =====
-      print("========== OCR RAW TEXT ==========");
       print(recognizedText.text.trim());
-      print("==================================");
-      // =====================
 
       return _parseReceipt(recognizedText);
     } finally {
       await textRecognizer.close();
     }
   }
-
-  // ==========================================================
-  // _parseReceipt() — now takes the full RecognizedText object
-  // ==========================================================
-
   ReceiptScanResult _parseReceipt(RecognizedText recognizedText) {
-    // Still required for date extraction, time extraction, and notes.
-    final String rawText = recognizedText.text.trim();
 
-    // Flatten every TextLine from every TextBlock into a single list.
-    // TextBlocks are only used to obtain the TextLines — the extraction
-    // algorithm itself does not rely on block grouping.
+    final String rawText = recognizedText.text.trim();
     final List<TextLine> allTextLines = [];
     for (final TextBlock block in recognizedText.blocks) {
       allTextLines.addAll(block.lines);
@@ -96,10 +75,6 @@ class ReceiptScannerService {
     );
   }
 
-  // ==========================================================
-  // Amount extraction — REWRITTEN to use List<TextLine>
-  // ==========================================================
-
   static final RegExp _amountPattern = RegExp(
     r'(\d{1,3}(?:[, ]\d{3})*(?:\.\d{2})|\d+\.\d{2})',
   );
@@ -111,21 +86,20 @@ class ReceiptScannerService {
     'change',
   ];
 
-  // Exact priority order requested.
   static const List<String> _totalKeywords = [
-    'grand total',
-    'net total',
-    'total amount',
-    'total invoice value',
-    'bill total',
-    'transfer amount',
-    'amount due',
-    'total due',
-    'amount (lkr)',
-    'amount',
-    'subtotal',
-    'sub total',
-    'total',
+   'grand total',
+  'total invoice value',
+  'bill total',
+  'total due',
+  'amount due',
+  'net total',
+  'total amount',
+  'bill amount',
+  'bill amt',
+  'full amount',
+  'total lkr',
+  'total rs',
+  'total',
   ];
 
   double? _extractAmount(List<TextLine> lines) {
@@ -154,14 +128,17 @@ class ReceiptScannerService {
       }
     }
 
-    // Fallback: no keyword found anywhere — return the largest monetary value.
+    // Fallback: no keyword found anywhere — return the largest plausible
+    // monetary value.
     final List<double> possibleAmounts = [];
 
     for (final TextLine line in lines) {
       for (final RegExpMatch match
           in _amountPattern.allMatches(line.text)) {
         final double? value = _parseAmount(match.group(1)!);
-        if (value != null && value > 0) {
+        if (value != null &&
+            value > 0 &&
+            !_isImplausibleAmount(value)) {
           possibleAmounts.add(value);
         }
       }
@@ -175,15 +152,6 @@ class ReceiptScannerService {
     return possibleAmounts.last;
   }
 
-  /// Locates the best monetary amount associated with [keywordLine].
-  ///
-  /// Strategy:
-  /// 1. Look at every TextLine on the same visual row as the keyword
-  ///    (including the keyword's own line, e.g. "Total: 500.00").
-  /// 2. Among same-row candidates, pick the one whose centerX is closest
-  ///    to the keyword's centerX.
-  /// 3. If nothing is found on the same row, check the next three
-  ///    TextLines that appear below the keyword in the flattened list.
   double? _findNearbyAmount({
     required List<TextLine> lines,
     required TextLine keywordLine,
@@ -193,12 +161,10 @@ class ReceiptScannerService {
 
     final List<TextLine> sameRowCandidates = [];
 
-    // The keyword's own line may itself contain the amount.
     if (!_shouldIgnoreLine(keywordLine, keyword) &&
         _amountPattern.hasMatch(keywordLine.text)) {
       sameRowCandidates.add(keywordLine);
     }
-
     for (final TextLine line in lines) {
       if (identical(line, keywordLine)) {
         continue;
@@ -213,10 +179,7 @@ class ReceiptScannerService {
         sameRowCandidates.add(line);
       }
     }
-
     if (sameRowCandidates.isNotEmpty) {
-      // Select the candidate whose centerX is horizontally closest
-      // to the keyword's centerX.
       TextLine? closest;
       double closestDistance = double.infinity;
       final double keywordCenterX =
@@ -242,7 +205,6 @@ class ReceiptScannerService {
       }
     }
 
-    // Nothing on the same row — search the next three TextLines below.
     final int keywordIndex = lines.indexOf(keywordLine);
     if (keywordIndex != -1) {
       int checked = 0;
@@ -268,9 +230,6 @@ class ReceiptScannerService {
     return null;
   }
 
-  /// True if [line] should be ignored for the current [keyword] search,
-  /// because it contains one of the excluded terms (Cash/Paid/Balance/Change)
-  /// — unless the keyword itself is "cash".
   bool _shouldIgnoreLine(TextLine line, String keyword) {
     if (keyword == 'cash') {
       return false;
@@ -280,8 +239,6 @@ class ReceiptScannerService {
     return _ignoreKeywords.any((kw) => lower.contains(kw));
   }
 
-  /// True if two bounding boxes are considered to be on the same visual row,
-  /// based on how close their vertical centers are relative to their height.
   bool _isSameRow(Rect a, Rect b) {
     final double aCenterY = a.top + (a.height / 2);
     final double bCenterY = b.top + (b.height / 2);
@@ -291,33 +248,67 @@ class ReceiptScannerService {
 
     return (aCenterY - bCenterY).abs() <= tolerance;
   }
-
-  /// Extracts the first valid monetary value from a single TextLine.
   double? _extractAmountFromLine(TextLine line) {
-    final Iterable<RegExpMatch> matches =
-        _amountPattern.allMatches(line.text);
+    final List<double> plausibleValues = [];
 
-    if (matches.isEmpty) {
-      return null;
+    for (final RegExpMatch match in _amountPattern.allMatches(line.text)) {
+      final double? value = _parseAmount(match.group(1)!);
+      if (value != null && !_isImplausibleAmount(value)) {
+        plausibleValues.add(value);
+      }
     }
 
-    // Prefer the last monetary value on the line (commonly the actual
-    // figure when a currency code/prefix precedes it).
-    return _parseAmount(matches.last.group(1)!);
+    if (plausibleValues.isEmpty) {
+      return null;
+    }
+    return plausibleValues.last;
   }
 
-  /// Parses a matched amount string (stripping thousands separators)
-  /// into a double.
   double? _parseAmount(String rawAmount) {
     final String cleaned = rawAmount.replaceAll(RegExp(r'[,\s]'), '');
     return double.tryParse(cleaned);
   }
 
-  // ==========================================================
-  // Date extraction — UNCHANGED
-  // ==========================================================
+  bool _isImplausibleAmount(double value) {
+    final int wholePart = value.truncate();
+    final int centsPart = ((value - wholePart) * 100).round();
+
+    final bool looksLikeYearMonth = wholePart >= 1900 &&
+        wholePart <= 2099 &&
+        centsPart >= 1 &&
+        centsPart <= 12;
+
+    if (looksLikeYearMonth) {
+      return true;
+    }
+
+    const double minPlausibleAmount = 10;
+    return value < minPlausibleAmount;
+  }
+
+
+  static const Map<String, int> _monthNamesToNumber = {
+    'jan': 1, 'january': 1,
+    'feb': 2, 'february': 2,
+    'mar': 3, 'march': 3,
+    'apr': 4, 'april': 4,
+    'may': 5,
+    'jun': 6, 'june': 6,
+    'jul': 7, 'july': 7,
+    'aug': 8, 'august': 8,
+    'sep': 9, 'sept': 9, 'september': 9,
+    'oct': 10, 'october': 10,
+    'nov': 11, 'november': 11,
+    'dec': 12, 'december': 12,
+  };
 
   DateTime? _extractDate(String text) {
+
+    final DateTime? monthNameDate = _extractMonthNameDate(text);
+    if (monthNameDate != null) {
+      return monthNameDate;
+    }
+
     final List<RegExp> patterns = [
       RegExp(
         r'\b(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b',
@@ -367,13 +358,55 @@ class ReceiptScannerService {
     return null;
   }
 
-  // ==========================================================
-  // Time extraction — UNCHANGED
-  // ==========================================================
+  DateTime? _extractMonthNameDate(String text) {
+    final RegExp dayMonthYear = RegExp(
+      r'\b(\d{1,2})[-\s]+([A-Za-z]{3,9})[-,\s]+(\d{4})\b',
+      caseSensitive: false,
+    );
+
+    final RegExpMatch? dayMonthYearMatch = dayMonthYear.firstMatch(text);
+    if (dayMonthYearMatch != null) {
+      final int? month = _monthNamesToNumber[
+          dayMonthYearMatch.group(2)!.toLowerCase()];
+      if (month != null) {
+        final DateTime? validDate = _createValidDate(
+          int.parse(dayMonthYearMatch.group(3)!),
+          month,
+          int.parse(dayMonthYearMatch.group(1)!),
+        );
+        if (validDate != null) {
+          return validDate;
+        }
+      }
+    }
+
+    final RegExp monthDayYear = RegExp(
+      r'\b([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})\b',
+      caseSensitive: false,
+    );
+
+    final RegExpMatch? monthDayYearMatch = monthDayYear.firstMatch(text);
+    if (monthDayYearMatch != null) {
+      final int? month = _monthNamesToNumber[
+          monthDayYearMatch.group(1)!.toLowerCase()];
+      if (month != null) {
+        final DateTime? validDate = _createValidDate(
+          int.parse(monthDayYearMatch.group(3)!),
+          month,
+          int.parse(monthDayYearMatch.group(2)!),
+        );
+        if (validDate != null) {
+          return validDate;
+        }
+      }
+    }
+
+    return null;
+  }
 
   TimeOfDay? _extractTime(String text) {
     final RegExp twelveHourPattern = RegExp(
-      r'\b(\d{1,2})[:.](\d{2})\s*(AM|PM)\b',
+      r'\b(\d{1,2})[:.](\d{2})(?::\d{2})?\s*(AM|PM)\b',
       caseSensitive: false,
     );
 
@@ -425,107 +458,6 @@ class ReceiptScannerService {
     return null;
   }
 
-  // ==========================================================
-  // Category detection — kept intact (method preserved),
-  // simply not used for the `category` field per the new requirement.
-  // ==========================================================
-
-  String? _suggestCategory(String text) {
-    final String lowercaseText = text.toLowerCase();
-
-    final Map<String, List<String>> categoryKeywords = {
-      'Groceries': [
-        'supermarket',
-        'grocery',
-        'cargills',
-        'keells',
-        'arpico',
-        'food city',
-        'laugfs',
-        'glomark',
-      ],
-      'Dining': [
-        'restaurant',
-        'cafe',
-        'coffee',
-        'pizza',
-        'burger',
-        'kfc',
-        'dominos',
-        'food',
-      ],
-      'Fuel': [
-        'fuel',
-        'petrol',
-        'diesel',
-        'filling station',
-        'ceypetco',
-        'ioc',
-      ],
-      'Medicines': [
-        'pharmacy',
-        'medicine',
-        'medical',
-        'drugs',
-        'healthguard',
-      ],
-      'Transport': [
-        'uber',
-        'pickme',
-        'taxi',
-        'bus',
-        'train',
-        'transport',
-      ],
-      'Clothing': [
-        'fashion',
-        'clothing',
-        'apparel',
-        'shirt',
-        'dress',
-        'shoes',
-      ],
-      'Electricity': [
-        'electricity',
-        'ceb',
-        'leco',
-      ],
-      'Water': [
-        'water board',
-        'water bill',
-        'nwsdb',
-      ],
-      'Phone': [
-        'dialog',
-        'mobitel',
-        'hutch',
-        'airtel',
-        'reload',
-        'mobile',
-      ],
-      'Internet': [
-        'internet',
-        'broadband',
-        'fibre',
-        'fiber',
-        'wifi',
-      ],
-    };
-
-    for (final MapEntry<String, List<String>> entry
-        in categoryKeywords.entries) {
-      final bool matches = entry.value.any(
-        lowercaseText.contains,
-      );
-
-      if (matches) {
-        return entry.key;
-      }
-    }
-
-    return null;
-  }
-
   bool _looksLikeDate(String text) {
     return RegExp(
       r'\b\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}\b',
@@ -562,9 +494,6 @@ class ReceiptScannerService {
         .join(' ');
   }
 
-  // ==========================================================
-  // _createValidDate() — UNCHANGED, kept as required
-  // ==========================================================
 
   DateTime? _createValidDate(
     int year,

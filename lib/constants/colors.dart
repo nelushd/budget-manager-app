@@ -1,26 +1,43 @@
 import 'package:flutter/material.dart';
 
+/// Finance theme: Teal & Emerald.
+/// Extends the app's existing teal seed (0xFF0F766E) and the existing
+/// income/expense colors already used in add_transaction_page.dart
+/// (0xFF22C55E / 0xFFEF4444), so new screens feel consistent with the app.
 class AppColors {
-  // Primary colors
-  static const Color primaryColor = Color(0xFF6200EE);
-  static const Color primaryDarkColor = Color(0xFF3700B3);
-  static const Color primaryLightColor = Color(0xFFBB86FC);
+  // Primary (teal)
+  static const Color primary = Color(0xFF0F766E);
+  static const Color primaryDark = Color(0xFF115E59);
+  static const Color primaryLight = Color(0xFF14B8A6);
 
-  // Secondary colors
-  static const Color secondaryColor = Color(0xFF03DAC6);
-  static const Color secondaryDarkColor = Color(0xFF018786);
-  static const Color secondaryLightColor = Color(0xFF66FFF9);
+  // Secondary (emerald) — income / positive / on-track
+  static const Color secondary = Color(0xFF22C55E);
+  static const Color secondaryDark = Color(0xFF15803D);
+  static const Color secondaryLight = Color(0xFF86EFAC);
 
   // Status colors
-  static const Color successColor = Color(0xFF4CAF50);
-  static const Color errorColor = Color(0xFFCF6679);
-  static const Color warningColor = Color(0xFFFFC107);
-  static const Color infoColor = Color(0xFF2196F3);
+  static const Color success = Color(0xFF22C55E);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color error = Color(0xFFEF4444);
+  static const Color info = Color(0xFF0EA5E9);
 
-  // Neutral colors
-  static const Color backgroundColor = Color(0xFFFAFAFA);
-  static const Color surfaceColor = Color(0xFFFFFFFF);
-  static const Color textColor = Color(0xFF212121);
-  static const Color hintColor = Color(0xFF9E9E9E);
-  static const Color dividerColor = Color(0xFFEEEEEE);
+  // Neutral
+  static const Color background = Color(0xFFF5F5F5);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color textPrimary = Color(0xFF111827);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color divider = Color(0xFFE5E7EB);
+
+  // Gradients (summary cards / hero sections)
+  static const List<Color> primaryGradient = [
+    Color(0xFF115E59),
+    Color(0xFF0F766E),
+    Color(0xFF14B8A6),
+  ];
+
+  static const List<Color> secondaryGradient = [
+    Color(0xFF15803D),
+    Color(0xFF22C55E),
+    Color(0xFF4ADE80),
+  ];
 }

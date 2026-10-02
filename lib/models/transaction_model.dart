@@ -1,5 +1,6 @@
 class TransactionModel {
   final String? id;
+  final String userId;
   final double amount;
   final String type;
   final String categoryId;
@@ -12,6 +13,7 @@ class TransactionModel {
 
   const TransactionModel({
     this.id,
+    required this.userId,
     required this.amount,
     required this.type,
     required this.categoryId,
@@ -25,6 +27,7 @@ class TransactionModel {
 
   Map<String, dynamic> toFirestore() {
     return {
+      'userId': userId,
       'amount': amount,
       'type': type,
       'categoryId': categoryId,
@@ -47,6 +50,7 @@ class TransactionModel {
   ) {
     return TransactionModel(
       id: id,
+      userId: data['userId']?.toString() ?? '',
       amount: (data['amount'] as num?)?.toDouble() ?? 0,
       type: data['type']?.toString() ?? 'expense',
       categoryId: data['categoryId']?.toString() ?? '',
@@ -68,6 +72,7 @@ class TransactionModel {
 
   TransactionModel copyWith({
     String? id,
+    String? userId,
     double? amount,
     String? type,
     String? categoryId,
@@ -80,6 +85,7 @@ class TransactionModel {
   }) {
     return TransactionModel(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       amount: amount ?? this.amount,
       type: type ?? this.type,
       categoryId: categoryId ?? this.categoryId,
