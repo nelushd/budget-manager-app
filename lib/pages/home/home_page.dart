@@ -15,7 +15,6 @@ import '../../widgets/sidebar_drawer.dart';
 import '../accounts/accounts_page.dart';
 import '../accounts/credit_cards_page.dart';
 import '../budget/create_budget_page.dart';
-import '../goals/goals_dashboard_page.dart';
 import '../lending/lendings_list_page.dart';
 import '../loan/loans_list_page.dart';
 import '../recurring/recurring_list_page.dart';
@@ -825,21 +824,6 @@ class _HomePageState extends State<HomePage> {
                             onTap: () {
                               Navigator.pop(context);
                               _showLendingLoanChooser(context);
-                            },
-                          ),
-                          _quickActionCard(
-                            context,
-                            title: 'Saving Goals',
-                            icon: Icons.savings_outlined,
-                            color: const Color(0xFF14B8A6),
-                            onTap: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const GoalsDashboardPage(),
-                                ),
-                              );
                             },
                           ),
                         ],

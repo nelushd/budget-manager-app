@@ -13,7 +13,7 @@ service cloud.firestore {
 
     function isUserScopedCollection(collection) {
       return collection in [
-        'accounts', 'budgets', 'categories', 'goals',
+        'accounts', 'budgets', 'categories',
         'lendings', 'loans', 'recurringExpenses', 'transactions', 'transfers'
       ];
     }
@@ -24,7 +24,7 @@ service cloud.firestore {
     // user must already own, so signed-in-only is the right scope here.
     function isSignedInSubCollection(collection) {
       return collection in [
-        'goalTransactions', 'lendingRepayments', 'loanPayments', 'recurringPayments'
+        'lendingRepayments', 'loanPayments', 'recurringPayments'
       ];
     }
 

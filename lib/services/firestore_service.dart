@@ -5,8 +5,6 @@ import '../models/account_model.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../models/budget_model.dart';
-import '../models/goal_model.dart';
-import '../models/goal_transaction_model.dart';
 import '../models/recurring_expense_model.dart';
 import '../models/recurring_payment_model.dart';
 import '../models/lending_model.dart';
@@ -38,14 +36,6 @@ class FirestoreService {
 
   CollectionReference<Map<String, dynamic>> get _budgets {
     return _firestore.collection('budgets');
-  }
-
-  CollectionReference<Map<String, dynamic>> get _goals {
-    return _firestore.collection('goals');
-  }
-
-  CollectionReference<Map<String, dynamic>> get _goalTransactions {
-    return _firestore.collection('goalTransactions');
   }
 
   CollectionReference<Map<String, dynamic>> get _recurringExpenses {
@@ -289,9 +279,135 @@ class FirestoreService {
   /// immediately instead of starting from zero.
   static const String kGlobalCategoryUserId = '__global__';
 
+  static const List<Map<String, String>> _additionalGlobalIncomeCategories = [
+    {'name': 'Business Income', 'iconName': 'business'},
+    {'name': 'Investment Return', 'iconName': 'trending_up'},
+    {'name': 'Rental Income', 'iconName': 'home_work'},
+    {'name': 'Side Hustles', 'iconName': 'work_history'},
+    {'name': 'Dividends', 'iconName': 'account_balance'},
+    {'name': 'Refunds', 'iconName': 'currency_exchange'},
+    {'name': 'Bank Interest', 'iconName': 'percent'},
+  ];
+
+  static const List<Map<String, String>> _globalExpenseCategories = [
+    {'name': 'Electricity', 'iconName': 'electric_bolt'},
+    {'name': 'Rent', 'iconName': 'home'},
+    {'name': 'Give Lending', 'iconName': 'account_balance'},
+    {'name': 'Water', 'iconName': 'water_drop'},
+    {'name': 'Gas', 'iconName': 'local_fire_department'},
+    {'name': 'Garbage', 'iconName': 'delete_outline'},
+    {'name': 'Groceries', 'iconName': 'shopping_cart'},
+    {'name': 'Phone', 'iconName': 'smartphone'},
+    {'name': 'Internet', 'iconName': 'wifi'},
+    {'name': 'TV', 'iconName': 'tv'},
+    {'name': 'Domestic Help', 'iconName': 'cleaning_services'},
+    {'name': 'Transport', 'iconName': 'directions_bus'},
+    {'name': 'Fuel', 'iconName': 'local_gas_station'},
+    {'name': 'Vehicle', 'iconName': 'directions_car'},
+    {'name': 'Parking', 'iconName': 'local_parking'},
+    {'name': 'Tuition', 'iconName': 'school'},
+    {'name': 'Books', 'iconName': 'menu_book'},
+    {'name': 'Dental', 'iconName': 'medical_services'},
+    {'name': 'Clothing', 'iconName': 'checkroom'},
+    {'name': 'Salon', 'iconName': 'content_cut'},
+    {'name': 'Gym', 'iconName': 'fitness_center'},
+    {'name': 'Dining', 'iconName': 'restaurant'},
+    {'name': 'Movies', 'iconName': 'movie'},
+    {'name': 'Travel', 'iconName': 'flight'},
+    {'name': 'Hobbies', 'iconName': 'palette'},
+    {'name': 'Credit Cards', 'iconName': 'credit_card'},
+    {'name': 'Savings', 'iconName': 'savings_alt'},
+    {'name': 'Gifts', 'iconName': 'gifts'},
+    {'name': 'Emergency', 'iconName': 'warning_amber'},
+    {'name': 'Subs', 'iconName': 'subscriptions'},
+    {'name': 'Credit Card Interest', 'iconName': 'credit_card'},
+    {'name': 'Bank Charges', 'iconName': 'bank_charges'},
+    {'name': 'Goal Saving', 'iconName': 'savings_alt'},
+  ];
+
+  Future<void> _ensureAdditionalGlobalIncomeCategories() async {
+    if (_currentUserId == null) return;
+
+    final snapshot = await _categories
+        .where('type', isEqualTo: 'income')
+        .where('userId', isEqualTo: kGlobalCategoryUserId)
+        .get();
+    final existingNames = {
+      for (final document in snapshot.docs)
+        document.data()['name']?.toString().trim().toLowerCase(),
+    };
+    final missing = _additionalGlobalIncomeCategories.where(
+      (category) => !existingNames.contains(category['name']!.toLowerCase()),
+    );
+
+    if (missing.isEmpty) return;
+
+    final batch = _firestore.batch();
+    final createdAt = DateTime.now().millisecondsSinceEpoch;
+    for (final category in missing) {
+      final documentId = category['name']!
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+          .replaceAll(RegExp(r'^_|_$'), '');
+      final reference = _categories.doc('global_income_$documentId');
+      batch.set(reference, {
+        'userId': kGlobalCategoryUserId,
+        'name': category['name'],
+        'type': 'income',
+        'iconName': category['iconName'],
+        'isDefault': true,
+        'createdAt': createdAt,
+      });
+    }
+    await batch.commit();
+  }
+
+  Future<void> _ensureGlobalExpenseCategories() async {
+    if (_currentUserId == null) return;
+
+    final snapshot = await _categories
+        .where('type', isEqualTo: 'expense')
+        .where('userId', isEqualTo: kGlobalCategoryUserId)
+        .get();
+    final existingNames = {
+      for (final document in snapshot.docs)
+        document.data()['name']?.toString().trim().toLowerCase(),
+    };
+    final missing = _globalExpenseCategories.where(
+      (category) => !existingNames.contains(category['name']!.toLowerCase()),
+    );
+
+    if (missing.isEmpty) return;
+
+    final batch = _firestore.batch();
+    final createdAt = DateTime.now().millisecondsSinceEpoch;
+    for (final category in missing) {
+      final documentId = category['name']!
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+          .replaceAll(RegExp(r'^_|_$'), '');
+      final reference = _categories.doc('global_expense_$documentId');
+      batch.set(reference, {
+        'userId': kGlobalCategoryUserId,
+        'name': category['name'],
+        'type': 'expense',
+        'iconName': category['iconName'],
+        'isDefault': true,
+        'createdAt': createdAt,
+      });
+    }
+    await batch.commit();
+  }
+
   Future<List<CategoryModel>> getCategoriesByType(
     String type,
   ) async {
+    if (type == 'income') {
+      await _ensureAdditionalGlobalIncomeCategories();
+    } else if (type == 'expense') {
+      await _ensureGlobalExpenseCategories();
+    }
+
     final userId = _currentUserId;
 
     final ownQuery = userId == null
@@ -949,132 +1065,6 @@ class FirestoreService {
         .map((document) =>
             TransactionModel.fromFirestore(document.id, document.data()))
         .toList();
-  }
-
-  // ============================================================
-  // GOALS
-  // ============================================================
-
-  Future<String> addGoal(GoalModel goal) async {
-    if (goal.goalName.trim().isEmpty) {
-      throw ArgumentError('Goal name cannot be empty.');
-    }
-
-    final document = await _goals.add(goal.toFirestore());
-    return document.id;
-  }
-
-  Future<List<GoalModel>> getGoals() async {
-    final userId = _currentUserId;
-    Query<Map<String, dynamic>> query = _goals;
-
-    if (userId != null) {
-      query = query.where('userId', isEqualTo: userId);
-    }
-
-    final snapshot = await query.get();
-
-    final goals = snapshot.docs
-        .map((document) => GoalModel.fromFirestore(document.id, document.data()))
-        .toList();
-
-    goals.sort((first, second) => second.createdDate.compareTo(first.createdDate));
-    return goals;
-  }
-
-  Stream<List<GoalModel>> watchGoals() {
-    final userId = _currentUserId;
-    Query<Map<String, dynamic>> query = _goals;
-
-    if (userId != null) {
-      query = query.where('userId', isEqualTo: userId);
-    }
-
-    return query.snapshots().map((snapshot) {
-      final goals = snapshot.docs
-          .map((document) => GoalModel.fromFirestore(document.id, document.data()))
-          .toList();
-
-      goals.sort((first, second) => second.createdDate.compareTo(first.createdDate));
-      return goals;
-    });
-  }
-
-  Future<GoalModel?> getGoalById(String goalId) async {
-    if (goalId.trim().isEmpty) {
-      return null;
-    }
-
-    final document = await _goals.doc(goalId).get();
-
-    if (!document.exists || document.data() == null) {
-      return null;
-    }
-
-    return GoalModel.fromFirestore(document.id, document.data()!);
-  }
-
-  Future<void> updateGoal(GoalModel goal) async {
-    final goalId = goal.id;
-
-    if (goalId == null || goalId.isEmpty) {
-      throw ArgumentError('Goal ID is required.');
-    }
-
-    await _goals.doc(goalId).update(goal.toFirestore());
-  }
-
-  Future<void> deleteGoal(String goalId) async {
-    if (goalId.trim().isEmpty) {
-      throw ArgumentError('Goal ID is required.');
-    }
-
-    await _goals.doc(goalId).delete();
-  }
-
-  /// Records a deposit/withdrawal and adjusts the goal's currentAmount in
-  /// the same transaction (mirrors how account balances are adjusted
-  /// alongside a transaction in addTransaction). Marks the goal completed
-  /// when currentAmount reaches targetAmount.
-  Future<GoalModel> addGoalTransaction(GoalTransactionModel goalTransaction) async {
-    final goalReference = _goals.doc(goalTransaction.goalId);
-    final transactionReference = _goalTransactions.doc();
-
-    return _firestore.runTransaction<GoalModel>((firestoreTransaction) async {
-      final goalSnapshot = await firestoreTransaction.get(goalReference);
-
-      if (!goalSnapshot.exists || goalSnapshot.data() == null) {
-        throw StateError('The goal does not exist.');
-      }
-
-      final goal = GoalModel.fromFirestore(goalSnapshot.id, goalSnapshot.data()!);
-
-      final delta = goalTransaction.type == 'deposit'
-          ? goalTransaction.amount
-          : -goalTransaction.amount;
-
-      final newAmount = (goal.currentAmount + delta).clamp(0, double.infinity).toDouble();
-      final newStatus = newAmount >= goal.targetAmount ? 'completed' : goal.status;
-
-      firestoreTransaction.set(transactionReference, goalTransaction.toFirestore());
-      firestoreTransaction.update(goalReference, {
-        'currentAmount': newAmount,
-        'status': newStatus,
-      });
-
-      return goal.copyWith(currentAmount: newAmount, status: newStatus);
-    });
-  }
-
-  Future<List<GoalTransactionModel>> getGoalTransactions(String goalId) async {
-    final snapshot = await _goalTransactions.where('goalId', isEqualTo: goalId).get();
-
-    final transactions = snapshot.docs
-        .map((document) => GoalTransactionModel.fromFirestore(document.id, document.data()))
-        .toList();
-
-    transactions.sort((first, second) => second.createdAt.compareTo(first.createdAt));
-    return transactions;
   }
 
   // ============================================================

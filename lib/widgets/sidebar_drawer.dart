@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
-import '../pages/goals/goals_dashboard_page.dart';
 import '../pages/lending/lendings_list_page.dart';
 import '../pages/loan/loans_list_page.dart';
 import '../pages/profile_page.dart';
 import '../pages/recurring/recurring_list_page.dart';
 import '../pages/sms/sms_parser_page.dart';
 
-/// Dark palette matching Home/Analytics/Credit Cards — the drawer slides in
-/// over every tab, so it stays dark permanently rather than following
-/// whichever tab happened to open it.
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);
@@ -117,15 +113,6 @@ class SidebarDrawer extends StatelessWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const RecurringListPage()),
-              ),
-            ),
-            _menuTile(
-              context,
-              icon: Icons.flag_outlined,
-              title: 'Goals',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const GoalsDashboardPage()),
               ),
             ),
             _menuTile(

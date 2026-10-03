@@ -14,15 +14,7 @@ class _KeypadDark {
   static const Color textSecondary = Color(0xFF9CA3AF);
 }
 
-/// Opens the calculator-style keypad for [controller]. Updates the
-/// controller live as buttons are pressed, and finalizes it to a plain
-/// evaluated number when the sheet is closed (Done, or dismissed any other
-/// way), so a half-typed expression never gets left in the field.
-///
-/// [dark] matches the sheet to the dark pages (Add Transaction, Transfer,
-/// SMS Parser, Credit Card, Create Budget, ...) it's opened from; the
-/// default (false) keeps it light for the pages still on the light theme
-/// (Create Account, Goals, Loans, Lending, Recurring, SMS Drafts).
+
 Future<void> showCalculatorKeypad(
   BuildContext context, {
   required TextEditingController controller,

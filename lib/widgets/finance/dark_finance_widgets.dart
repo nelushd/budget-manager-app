@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'calculator_keypad.dart';
 
-/// Dark-theme counterparts to the widgets in `finance_widgets.dart`, for
-/// pages reskinned to match the Credit Card / Home / Analytics dark corner
-/// of the app. Kept as a separate opt-in file rather than changes to the
-/// original (light) widgets, since those are still used unmodified by every
-/// page that hasn't been reskinned (Goals, Loans, Lending, Recurring,
+
 /// Categories, SMS, ...).
 class FinanceDark {
   FinanceDark._();
@@ -22,9 +18,6 @@ class FinanceDark {
   static const Color info = Color(0xFF60A5FA);
 }
 
-/// [AppCard]'s dark equivalent — a visible border instead of a light drop
-/// shadow (which all but disappears on a near-black page) is what actually
-/// separates the card from the page underneath it.
 class DarkCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
