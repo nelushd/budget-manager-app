@@ -12,9 +12,6 @@ import '../services/firestore_service.dart';
 import 'category_icon.dart';
 import 'period_calculator.dart';
 
-/// Fetches every collection [buildActivityFeed] needs and returns the
-/// merged, sorted feed in one call — shared by the home page and the full
-/// transactions list so they never drift out of sync.
 Future<List<ActivityEntry>> loadActivityFeed(FirestoreService service) async {
   final results = await Future.wait([
     service.getTransactions(),

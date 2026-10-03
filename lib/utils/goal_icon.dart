@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Icon set for savings goals — Material Icons only, no emoji.
+
 const List<String> goalIconNames = [
   'flag',
   'shield',

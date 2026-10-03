@@ -39,7 +39,6 @@ class _SmsParserPageState extends State<SmsParserPage> {
 
   final TextEditingController _smsController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _noteController = TextEditingController();
 
   bool _hasParsed = false;
   String _selectedType = 'expense'; // income | expense
@@ -130,7 +129,6 @@ class _SmsParserPageState extends State<SmsParserPage> {
       _currency = parsed.currency;
       _selectedDate = parsed.date ?? DateTime.now();
       _selectedTime = parsed.time ?? TimeOfDay.now();
-      _noteController.text = 'SMS extracted:\n$text';
       _selectedType = parsed.type == 'credit' ? 'income' : 'expense';
     });
 
@@ -142,7 +140,6 @@ class _SmsParserPageState extends State<SmsParserPage> {
       _smsController.clear();
       _hasParsed = false;
       _amountController.clear();
-      _noteController.clear();
     });
   }
 
@@ -231,7 +228,6 @@ class _SmsParserPageState extends State<SmsParserPage> {
         type: _selectedType,
         categoryId: _selectedCategory!.id!,
         accountId: _selectedAccount!.id!,
-        note: _noteController.text.trim(),
         receiptPath: null,
         date:
             '${_selectedDate.year}-'
@@ -674,11 +670,6 @@ class _SmsParserPageState extends State<SmsParserPage> {
                           }).toList(),
                         ),
                       ),
-                    const SizedBox(height: 20),
-
-                    _inputLabel('Note'),
-                    const SizedBox(height: 10),
-                    _textField(controller: _noteController, hintText: 'Note', maxLines: 4),
                     const SizedBox(height: 26),
 
                     SizedBox(
@@ -796,43 +787,11 @@ class _SmsParserPageState extends State<SmsParserPage> {
     return Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _Dark.textPrimary));
   }
 
-  Widget _textField({
-    required TextEditingController controller,
-    required String hintText,
-    int maxLines = 1,
-  }) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      style: const TextStyle(color: _Dark.textPrimary),
-      cursorColor: _Dark.accent,
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(color: _Dark.textSecondary),
-        filled: true,
-        fillColor: _Dark.card,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _Dark.divider),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _Dark.divider),
-        ),
-        focusedBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(color: _Dark.accent, width: 1.5),
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _amountController.removeListener(_refresh);
     _smsController.dispose();
     _amountController.dispose();
-    _noteController.dispose();
     super.dispose();
   }
 }

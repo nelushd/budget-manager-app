@@ -1,6 +1,4 @@
-/// Evaluates a simple calculator expression like "500+250*2" (standard
-/// precedence: * and / before + and -). Returns null if the expression is
-/// empty, malformed, or divides by zero.
+
 double? evaluateExpression(String rawExpression) {
   final expr = rawExpression
       .replaceAll('×', '*')

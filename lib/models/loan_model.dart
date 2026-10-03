@@ -29,7 +29,6 @@ class LoanModel {
     this.monthlyPaymentDay,
     this.customInstallmentAmount,
     this.accountId,
-    this.note = '',
     this.nextDueDate,
     required this.createdDate,
   });
@@ -53,7 +52,6 @@ class LoanModel {
       'monthlyPaymentDay': monthlyPaymentDay,
       'customInstallmentAmount': customInstallmentAmount,
       'accountId': accountId,
-      'note': note,
       'nextDueDate': nextDueDate,
       'createdDate': createdDate,
     };
@@ -76,7 +74,6 @@ class LoanModel {
       monthlyPaymentDay: (data['monthlyPaymentDay'] as num?)?.toInt(),
       customInstallmentAmount: (data['customInstallmentAmount'] as num?)?.toDouble(),
       accountId: data['accountId']?.toString(),
-      note: data['note']?.toString() ?? '',
       nextDueDate: data['nextDueDate']?.toString(),
       createdDate: (data['createdDate'] as num?)?.toInt() ?? 0,
     );
@@ -100,7 +97,6 @@ class LoanModel {
     int? monthlyPaymentDay,
     double? customInstallmentAmount,
     String? accountId,
-    String? note,
     String? nextDueDate,
     int? createdDate,
   }) {
@@ -118,7 +114,6 @@ class LoanModel {
       monthlyPaymentDay: monthlyPaymentDay ?? this.monthlyPaymentDay,
       customInstallmentAmount: customInstallmentAmount ?? this.customInstallmentAmount,
       accountId: accountId ?? this.accountId,
-      note: note ?? this.note,
       nextDueDate: nextDueDate ?? this.nextDueDate,
       createdDate: createdDate ?? this.createdDate,
     );

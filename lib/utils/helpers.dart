@@ -1,4 +1,4 @@
-// Helper functions for the app
+
 
 
 class Helpers {

@@ -25,7 +25,6 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
   final TextEditingController _termController = TextEditingController();
   final TextEditingController _installmentController = TextEditingController();
   final TextEditingController _paidController = TextEditingController();
-  final TextEditingController _noteController = TextEditingController();
 
   bool isLoading = true;
   bool isSaving = false;
@@ -51,7 +50,6 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
       }
       if (existing.startDate.isNotEmpty) startDate = PeriodCalculator.parseDate(existing.startDate);
       monthlyPaymentDay = existing.monthlyPaymentDay ?? 1;
-      _noteController.text = existing.note;
     }
 
     _loadAccounts();
@@ -110,7 +108,6 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
           termMonths: termMonths,
           monthlyPaymentDay: monthlyPaymentDay,
           customInstallmentAmount: customInstallment,
-          note: _noteController.text.trim(),
         );
         await _firestoreService.updateLoan(updated);
       } else {
@@ -132,7 +129,6 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
           monthlyPaymentDay: monthlyPaymentDay,
           customInstallmentAmount: customInstallment,
           accountId: selectedAccountId,
-          note: _noteController.text.trim(),
           nextDueDate: PeriodCalculator.formatDate(firstDue),
           createdDate: DateTime.now().millisecondsSinceEpoch,
         );
@@ -252,17 +248,6 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
                     AmountField(label: 'Add Paid Amount (Optional)', controller: _paidController),
                     const SizedBox(height: 18),
                   ],
-                  const SectionLabel('Note (Optional)'),
-                  TextField(
-                    controller: _noteController,
-                    maxLines: 3,
-                    maxLength: 500,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                    ),
-                  ),
                   const SizedBox(height: 10),
                   PrimaryActionButton(
                     label: isSaving ? 'Saving...' : (_isEditing ? 'Save Changes' : 'Create Loan'),
@@ -317,7 +302,6 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
     _termController.dispose();
     _installmentController.dispose();
     _paidController.dispose();
-    _noteController.dispose();
     super.dispose();
   }
 }

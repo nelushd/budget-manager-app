@@ -1,8 +1,4 @@
-/// Calendar-aligned period windows for reusable budgets/recurring status.
-///
-/// Budgets don't reset — only the spend calculation rolls forward each
-/// period. This computes the [start, end] window for a given period type
-/// and reference date, entirely client-side, so nothing needs to be stored.
+
 class PeriodWindow {
   final DateTime start;
   final DateTime end;
@@ -59,9 +55,7 @@ class PeriodCalculator {
     }
   }
 
-  /// Moves [reference] forward/backward by [steps] whole periods. Returns a
-  /// date guaranteed to fall inside the shifted period (safe to pass into
-  /// [windowFor]).
+
   static DateTime shift(String period, DateTime reference, int steps) {
     switch (period) {
       case 'daily':
@@ -82,9 +76,6 @@ class PeriodCalculator {
     }
   }
 
-  /// Clips [window] to the budget's own active range. Returns null if the
-  /// window falls entirely outside [startBound]/[endBound] (e.g. navigating
-  /// to a period before the budget existed or after it ended).
   static PeriodWindow? clip(
     PeriodWindow window, {
     DateTime? startBound,
@@ -104,9 +95,6 @@ class PeriodCalculator {
     return PeriodWindow(start, end);
   }
 
-  /// Walks back [count] whole periods before (and not including) the period
-  /// containing [reference], oldest first. Used for spend history / the
-  /// budget AI advisor's heuristic.
   static List<PeriodWindow> previousPeriods(
     String period,
     DateTime reference,

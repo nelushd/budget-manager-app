@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Deterministic accent color per category, derived from the category's id.
-/// Categories don't store a color today — this keeps budget UI colorful
-/// without touching CategoryModel or existing Firestore category docs.
 const List<Color> _categoryPalette = [
   Color(0xFF0F766E), // teal
   Color(0xFF22C55E), // emerald

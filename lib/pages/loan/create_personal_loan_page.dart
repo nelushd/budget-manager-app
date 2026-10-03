@@ -22,7 +22,6 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _totalController = TextEditingController();
   final TextEditingController _paidController = TextEditingController();
-  final TextEditingController _noteController = TextEditingController();
 
   bool isLoading = true;
   bool isSaving = false;
@@ -44,7 +43,6 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
       _paidController.text = existing.paidAmount > 0 ? _fmt(existing.paidAmount) : '';
       if (existing.startDate.isNotEmpty) startDate = PeriodCalculator.parseDate(existing.startDate);
       if (existing.dueDate != null) dueDate = PeriodCalculator.parseDate(existing.dueDate!);
-      _noteController.text = existing.note;
     }
 
     _loadAccounts();
@@ -103,7 +101,6 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
           totalAmount: totalAmount,
           startDate: PeriodCalculator.formatDate(startDate),
           dueDate: dueDate != null ? PeriodCalculator.formatDate(dueDate!) : null,
-          note: _noteController.text.trim(),
         );
         await _firestoreService.updateLoan(updated);
       } else {
@@ -117,7 +114,6 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
           startDate: PeriodCalculator.formatDate(startDate),
           dueDate: dueDate != null ? PeriodCalculator.formatDate(dueDate!) : null,
           accountId: selectedAccountId,
-          note: _noteController.text.trim(),
           createdDate: DateTime.now().millisecondsSinceEpoch,
         );
         await _firestoreService.addLoan(loan);
@@ -213,17 +209,6 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
                     onChanged: (value) => setState(() => selectedAccountId = value),
                   ),
                   const SizedBox(height: 18),
-                  const SectionLabel('Note (Optional)'),
-                  TextField(
-                    controller: _noteController,
-                    maxLines: 3,
-                    maxLength: 500,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                    ),
-                  ),
                   const SizedBox(height: 10),
                   PrimaryActionButton(
                     label: isSaving ? 'Saving...' : (_isEditing ? 'Save Changes' : 'Create Loan'),
@@ -255,7 +240,6 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
     _nameController.dispose();
     _totalController.dispose();
     _paidController.dispose();
-    _noteController.dispose();
     super.dispose();
   }
 }

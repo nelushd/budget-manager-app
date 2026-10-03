@@ -32,7 +32,7 @@ class TransactionModel {
       'type': type,
       'categoryId': categoryId,
       'accountId': accountId,
-      'note': note,
+      if (note != null) 'note': note,
       'receiptPath': receiptPath,
       'date': date,
       'time': time,

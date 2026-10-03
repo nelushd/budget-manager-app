@@ -43,7 +43,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   bool isScanningReceipt = false;
   final FirestoreService firestoreService = FirestoreService.instance;
   final TextEditingController amountController = TextEditingController();
-  final TextEditingController noteController = TextEditingController();
 
   List<AccountModel> accounts = [];
   List<CategoryModel> categories = [];
@@ -262,7 +261,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         type: selectedType,
         categoryId: selectedCategory!.id!,
         accountId: selectedAccount!.id!,
-        note: noteController.text.trim(),
         receiptPath: null,
         date:
             '${selectedDate.year}-'
@@ -608,11 +606,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
       if (result.time != null) {
         selectedTime = result.time!;
-      }
-
-      if (result.notes != null &&
-          noteController.text.trim().isEmpty) {
-        noteController.text = result.notes!;
       }
 
       if (result.category != null) {
@@ -1154,19 +1147,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                         }).toList(),
                       ),
                     ),
-
-
-
                   const SizedBox(height: 20),
-
-                  _inputLabel('Note'),
-                  const SizedBox(height: 12),
-                  _textField(
-                    controller: noteController,
-                    hintText: 'Add a note',
-                    maxLines: 3,
-                  ),
-
                   const SizedBox(height: 26),
 
                   SizedBox(
@@ -1318,52 +1299,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     );
   }
 
-  Widget _textField({
-    required TextEditingController controller,
-    required String hintText,
-    int maxLines = 1,
-  }) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      style: const TextStyle(color: _Dark.textPrimary),
-      cursorColor: _Dark.accent,
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(color: _Dark.textSecondary),
-        filled: true,
-        fillColor: _Dark.card,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: _Dark.divider,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: _Dark.divider,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: selectedType == 'income'
-                ? _Dark.success
-                : _Dark.error,
-            width: 1.5,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     amountController.removeListener(_refreshPage);
 
     amountController.dispose();
-    noteController.dispose();
 
     super.dispose();
   }
