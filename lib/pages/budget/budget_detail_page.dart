@@ -9,7 +9,6 @@ import '../../utils/period_calculator.dart';
 import '../../widgets/finance/circular_progress_ring.dart';
 import '../../widgets/finance/dark_finance_widgets.dart';
 import '../../widgets/finance/finance_widgets.dart' show StatusBadge;
-import 'budget_ai_advisor_page.dart';
 import 'create_budget_page.dart';
 
 class BudgetDetailPage extends StatefulWidget {
@@ -34,10 +33,7 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
 
   bool isLoading = true;
   BudgetModel? budget;
-  DateTime referenceDate = DateTime.now();
   PeriodWindow? window;
-  bool canGoPrev = false;
-  bool canGoNext = false;
   List<_CategoryLine> lines = [];
   bool showDeleteConfirm = false;
 
@@ -74,35 +70,10 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
     }
   }
 
-  DateTime? get _startBound => budget != null && budget!.startDate.isNotEmpty
-      ? PeriodCalculator.parseDate(budget!.startDate)
-      : null;
-
-  DateTime? get _endBound =>
-      budget?.endDate != null ? PeriodCalculator.parseDate(budget!.endDate!) : null;
-
   Future<void> _computePeriod(List<CategoryModel> categories) async {
     final b = budget!;
-    final rawWindow = PeriodCalculator.windowFor(b.period, referenceDate);
-    final clipped = PeriodCalculator.clip(
-      rawWindow,
-      startBound: _startBound,
-      endBound: _endBound,
-    );
-
-    final prevRef = PeriodCalculator.shift(b.period, referenceDate, -1);
-    final prevClipped = PeriodCalculator.clip(
-      PeriodCalculator.windowFor(b.period, prevRef),
-      startBound: _startBound,
-      endBound: _endBound,
-    );
-
-    final nextRef = PeriodCalculator.shift(b.period, referenceDate, 1);
-    final nextClipped = PeriodCalculator.clip(
-      PeriodCalculator.windowFor(b.period, nextRef),
-      startBound: _startBound,
-      endBound: _endBound,
-    );
+    final rawWindow = PeriodCalculator.windowFor('monthly', DateTime.now());
+    final clipped = PeriodCalculator.clip(rawWindow);
 
     final newLines = <_CategoryLine>[];
     if (clipped != null) {
@@ -127,20 +98,8 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
     setState(() {
       window = clipped;
       lines = newLines;
-      canGoPrev = prevClipped != null;
-      canGoNext = nextClipped != null && !rawWindow.start.isAfter(DateTime.now());
       isLoading = false;
     });
-  }
-
-  Future<void> _navigate(int steps) async {
-    if (budget == null) return;
-    setState(() {
-      isLoading = true;
-      referenceDate = PeriodCalculator.shift(budget!.period, referenceDate, steps);
-    });
-    final categories = await _firestoreService.getCategoriesByType('expense');
-    await _computePeriod(categories);
   }
 
   Future<void> _toggleActive() async {
@@ -170,24 +129,8 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
   }
 
   String _periodTitle() {
-    final b = budget;
     final w = window;
-    if (b == null || w == null) return '';
-
-    switch (b.period) {
-      case 'daily':
-        return _fmtDay(w.start);
-      case 'weekly':
-        return '${_fmtDay(w.start)} - ${_fmtDay(w.end)}';
-      case 'quarterly':
-        final q = ((w.start.month - 1) ~/ 3) + 1;
-        return 'Q$q ${w.start.year}';
-      case 'yearly':
-        return '${w.start.year}';
-      case 'monthly':
-      default:
-        return _fmtMonth(w.start);
-    }
+    return w == null ? '' : _fmtMonth(w.start);
   }
 
   static const _months = [
@@ -195,7 +138,6 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
-  String _fmtDay(DateTime d) => '${_months[d.month - 1]} ${d.day}, ${d.year}';
   String _fmtMonth(DateTime d) => '${_months[d.month - 1]} ${d.year}';
 
   @override
@@ -235,14 +177,6 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
         elevation: 0,
         actions: [
           IconButton(
-            tooltip: 'AI Tips',
-            icon: const Icon(Icons.auto_graph_rounded, color: FinanceDark.accent),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => BudgetAiAdvisorPage(budget: b)),
-            ),
-          ),
-          IconButton(
             icon: const Icon(Icons.edit_outlined, color: FinanceDark.textPrimary),
             onPressed: _edit,
           ),
@@ -253,30 +187,10 @@ class _BudgetDetailPageState extends State<BudgetDetailPage> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      onPressed: canGoPrev ? () => _navigate(-1) : null,
-                      icon: const Icon(Icons.chevron_left),
-                      color: FinanceDark.textPrimary,
-                      disabledColor: FinanceDark.divider,
-                    ),
-                    SizedBox(
-                      width: 160,
-                      child: Text(
-                        _periodTitle(),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontWeight: FontWeight.w700, color: FinanceDark.textPrimary),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: canGoNext ? () => _navigate(1) : null,
-                      icon: const Icon(Icons.chevron_right),
-                      color: FinanceDark.textPrimary,
-                      disabledColor: FinanceDark.divider,
-                    ),
-                  ],
+                Text(
+                  _periodTitle(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: FinanceDark.textPrimary),
                 ),
                 const SizedBox(height: 8),
                 DarkCard(

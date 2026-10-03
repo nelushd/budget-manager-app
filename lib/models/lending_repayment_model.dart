@@ -1,6 +1,7 @@
 class LendingRepaymentModel {
   final String? id;
   final String lendingId;
+  final String accountId;
   final double amount;
   final String date; // 'YYYY-MM-DD'
   final String? note;
@@ -9,6 +10,7 @@ class LendingRepaymentModel {
   const LendingRepaymentModel({
     this.id,
     required this.lendingId,
+    required this.accountId,
     required this.amount,
     required this.date,
     this.note,
@@ -18,6 +20,7 @@ class LendingRepaymentModel {
   Map<String, dynamic> toFirestore() {
     return {
       'lendingId': lendingId,
+      'accountId': accountId,
       'amount': amount,
       'date': date,
       'note': note,
@@ -31,6 +34,7 @@ class LendingRepaymentModel {
     return LendingRepaymentModel(
       id: id,
       lendingId: data['lendingId']?.toString() ?? '',
+      accountId: data['accountId']?.toString() ?? '',
       amount: (data['amount'] as num?)?.toDouble() ?? 0,
       date: data['date']?.toString() ?? '',
       note: data['note']?.toString(),

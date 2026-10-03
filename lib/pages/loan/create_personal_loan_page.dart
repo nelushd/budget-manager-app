@@ -7,6 +7,7 @@ import '../../models/loan_model.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/period_calculator.dart';
 import '../../widgets/finance/finance_widgets.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 
 class CreatePersonalLoanPage extends StatefulWidget {
   final LoanModel? existing;
@@ -135,11 +136,11 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: FinanceDark.bg,
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Personal Loan' : 'Create Personal Loan'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: FinanceDark.bg,
+        foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
         centerTitle: true,
       ),
@@ -154,21 +155,23 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
                   TextField(
                     controller: _nameController,
                     onChanged: (_) => setState(() {}),
+                    style: const TextStyle(color: FinanceDark.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'e.g. Borrowed from Sam',
                       filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                        fillColor: FinanceDark.card,
+                        hintStyle: const TextStyle(color: FinanceDark.textSecondary),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: FinanceDark.divider)),
                     ),
                   ),
                   const SizedBox(height: 18),
                   Row(
                     children: [
                       Expanded(
-                        child: AmountField(label: 'Total Loan Amount', controller: _totalController, onChanged: (_) => setState(() {})),
+                        child: AmountField(label: 'Total Loan Amount', controller: _totalController, dark: true, onChanged: (_) => setState(() {})),
                       ),
                       const SizedBox(width: 10),
-                      Expanded(child: AmountField(label: 'Paid Amount', controller: _paidController)),
+                      Expanded(child: AmountField(label: 'Paid Amount', controller: _paidController, dark: true)),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -182,24 +185,27 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text('When do you need to pay back this personal loan?', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    child: const Text('When do you need to pay back this personal loan?', style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
                   ),
                   const SizedBox(height: 20),
-                  const Text('Account Selection (Optional)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  const Text('Account Selection (Optional)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: FinanceDark.textPrimary)),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Text(
-                      "Please select an account if this is a new loan. If it's an old loan, don't select an account.",
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      'Select the account where this loan amount will be received.',
+                      style: const TextStyle(fontSize: 12, color: FinanceDark.textSecondary),
                     ),
                   ),
                   DropdownButtonFormField<String?>(
                     initialValue: selectedAccountId,
+                    style: const TextStyle(color: FinanceDark.textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: FinanceDark.card,
+                      hintStyle: const TextStyle(color: FinanceDark.textSecondary),
+                      labelStyle: const TextStyle(color: FinanceDark.textSecondary),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: FinanceDark.divider)),
                     ),
                     hint: const Text('No wallet selected'),
                     items: [
@@ -226,11 +232,11 @@ class _CreatePersonalLoanPageState extends State<CreatePersonalLoanPage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: FinanceDark.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: FinanceDark.divider),
         ),
-        child: Row(children: [const Icon(Icons.event, color: Colors.grey), const SizedBox(width: 10), Text(label)]),
+        child: Row(children: [const Icon(Icons.event, color: FinanceDark.textSecondary), const SizedBox(width: 10), Text(label, style: const TextStyle(color: FinanceDark.textPrimary))]),
       ),
     );
   }

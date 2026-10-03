@@ -62,9 +62,8 @@ class _AccountsPageState extends State<AccountsPage> {
     return 'Rs ${NumberFormat('#,##0.00').format(amount)}';
   }
 
-  /// Credit cards get their own dedicated section (via the Home quick
-  /// action) and their own richer detail page — they don't belong in the
-  /// plain cash/bank list here.
+  /// Credit cards get their own dedicated section and richer detail page;
+  /// they don't belong in the regular account list here.
   List<AccountModel> get _visibleAccounts =>
       accounts.where((a) => a.type != 'credit_card').toList();
 
@@ -136,7 +135,7 @@ class _AccountsPageState extends State<AccountsPage> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Add a cash or bank account to start tracking your money.',
+              'Add an account to start tracking your money.',
               textAlign: TextAlign.center,
               style: TextStyle(color: _Dark.textSecondary),
             ),
@@ -221,10 +220,7 @@ class _AccountsPageState extends State<AccountsPage> {
                   color: _Dark.accent.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  account.type == 'bank' ? Icons.account_balance : Icons.payments_outlined,
-                  color: _Dark.accent,
-                ),
+                child: const Icon(Icons.account_balance_wallet_outlined, color: _Dark.accent),
               ),
               const SizedBox(width: 14),
               Expanded(

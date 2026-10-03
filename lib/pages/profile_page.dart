@@ -60,12 +60,6 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: _Dark.bg,
         foregroundColor: _Dark.textPrimary,
         elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),

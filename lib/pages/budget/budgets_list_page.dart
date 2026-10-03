@@ -73,7 +73,6 @@ class _BudgetsListPageState extends State<BudgetsListPage> {
   @override
   Widget build(BuildContext context) {
     final active = summaries.where((s) => s.budget.isActive).toList();
-    final inactive = summaries.where((s) => !s.budget.isActive).toList();
 
     return Scaffold(
       backgroundColor: FinanceDark.bg,
@@ -105,11 +104,6 @@ class _BudgetsListPageState extends State<BudgetsListPage> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                     children: [
                       ...active.map(_budgetCard),
-                      if (inactive.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        const DarkSectionLabel('Inactive budgets'),
-                        ...inactive.map(_budgetCard),
-                      ],
                     ],
                   ),
                 ),
@@ -156,7 +150,7 @@ class _BudgetsListPageState extends State<BudgetsListPage> {
               ),
               const SizedBox(height: 2),
               Text(
-                _periodLabel(budget.period),
+                'Monthly budget',
                 style: const TextStyle(color: FinanceDark.textSecondary, fontSize: 12),
               ),
               const SizedBox(height: 14),
@@ -193,22 +187,6 @@ class _BudgetsListPageState extends State<BudgetsListPage> {
         ],
       ),
     );
-  }
-
-  String _periodLabel(String period) {
-    switch (period) {
-      case 'daily':
-        return 'Daily budget';
-      case 'weekly':
-        return 'Weekly budget';
-      case 'quarterly':
-        return 'Quarterly budget';
-      case 'yearly':
-        return 'Yearly budget';
-      case 'monthly':
-      default:
-        return 'Monthly budget';
-    }
   }
 
   String _fmt(double amount) => 'Rs ${amount.toStringAsFixed(0)}';

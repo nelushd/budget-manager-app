@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'calculator_keypad.dart';
+import 'dark_finance_widgets.dart';
 
 class AmountField extends StatelessWidget {
   final String label;
@@ -8,6 +9,7 @@ class AmountField extends StatelessWidget {
   final String prefix;
   final String hint;
   final bool autofocus;
+  final bool dark;
   final ValueChanged<String>? onChanged;
 
   const AmountField({
@@ -17,11 +19,12 @@ class AmountField extends StatelessWidget {
     this.prefix = 'Rs',
     this.hint = '0.00',
     this.autofocus = false,
+    this.dark = false,
     this.onChanged,
   });
 
   Future<void> _openKeypad(BuildContext context) async {
-    await showCalculatorKeypad(context, controller: controller, currency: prefix);
+    await showCalculatorKeypad(context, controller: controller, currency: prefix, dark: dark);
     onChanged?.call(controller.text);
   }
 
@@ -37,13 +40,13 @@ class AmountField extends StatelessWidget {
               fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.6,
-              color: Colors.grey[600],
+              color: dark ? FinanceDark.textSecondary : Colors.grey[600],
             ),
           ),
           const SizedBox(height: 6),
         ],
         Material(
-          color: Colors.grey[100],
+          color: dark ? FinanceDark.card : Colors.grey[100],
           borderRadius: BorderRadius.circular(12),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
@@ -51,7 +54,7 @@ class AmountField extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: dark ? FinanceDark.divider : Colors.grey[300]!),
               ),
               child: Row(
                 children: [
@@ -60,7 +63,7 @@ class AmountField extends StatelessWidget {
                     child: Text(
                       prefix,
                       style: TextStyle(
-                        color: Colors.grey[500],
+                        color: dark ? FinanceDark.textSecondary : Colors.grey[500],
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -77,7 +80,7 @@ class AmountField extends StatelessWidget {
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
-                              color: hasValue ? Colors.black87 : Colors.grey[400],
+                              color: hasValue ? (dark ? FinanceDark.textPrimary : Colors.black87) : (dark ? FinanceDark.textSecondary : Colors.grey[400]),
                             ),
                           );
                         },

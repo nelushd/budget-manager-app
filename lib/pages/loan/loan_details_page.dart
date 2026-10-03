@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../constants/colors.dart';
+import '../../models/account_model.dart';
 import '../../models/loan_model.dart';
 import '../../models/loan_payment_model.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/loan_calculator.dart';
 import '../../utils/period_calculator.dart';
 import '../../widgets/finance/finance_widgets.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 import 'create_bank_loan_page.dart';
 import 'create_personal_loan_page.dart';
 
@@ -25,6 +27,7 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
   bool isLoading = true;
   LoanModel? loan;
   List<LoanPaymentModel> payments = [];
+  List<AccountModel> accounts = [];
   bool showPayments = false;
   bool isRecording = false;
 
@@ -39,10 +42,12 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
     try {
       final loadedLoan = await _firestoreService.getLoanById(widget.loanId);
       final loadedPayments = await _firestoreService.getLoanPayments(widget.loanId);
+      final loadedAccounts = await _firestoreService.getAccounts();
       if (!mounted) return;
       setState(() {
         loan = loadedLoan;
         payments = loadedPayments;
+        accounts = loadedAccounts;
         isLoading = false;
       });
     } catch (error, stackTrace) {
@@ -58,36 +63,114 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
     if (l == null) return;
 
     final amountController = TextEditingController();
+    AccountModel? selectedAccount = accounts.where((account) => account.isDefault).firstOrNull;
+    selectedAccount ??= accounts.isNotEmpty ? accounts.first : null;
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: FinanceDark.bg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Make Payment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 16),
-              AmountField(label: 'Amount', controller: amountController),
-              const SizedBox(height: 18),
-              PrimaryActionButton(label: 'Make Payment', onPressed: () => Navigator.pop(sheetContext, true)),
-            ],
-          ),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final amount = double.tryParse(amountController.text.trim()) ?? 0;
+            final canConfirm = amount > 0 && amount <= l.remaining && selectedAccount != null;
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(child: Container(width: 44, height: 4, decoration: BoxDecoration(color: FinanceDark.divider, borderRadius: BorderRadius.circular(4)))),
+                    const SizedBox(height: 22),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Pay now', style: TextStyle(color: FinanceDark.textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
+                              SizedBox(height: 6),
+                              Text('Record a payment for this loan.', style: TextStyle(color: FinanceDark.textSecondary, fontSize: 15)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close, color: FinanceDark.textSecondary),
+                          style: IconButton.styleFrom(backgroundColor: FinanceDark.card),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 26),
+                    const DarkSectionLabel('Amount'),
+                    DarkAmountTile(
+                      controller: amountController,
+                      hint: '0.00',
+                      onChanged: (_) => setSheetState(() {}),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 7),
+                      child: Text('Remaining: Rs ${l.remaining.toStringAsFixed(2)}', style: const TextStyle(color: FinanceDark.textSecondary, fontSize: 12)),
+                    ),
+                    const SizedBox(height: 22),
+                    const DarkSectionLabel('Pay from wallet'),
+                    SizedBox(
+                      height: 104,
+                      child: accounts.isEmpty
+                          ? const Center(child: Text('No accounts available', style: TextStyle(color: FinanceDark.textSecondary)))
+                          : ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: accounts.length,
+                              separatorBuilder: (context, index) => const SizedBox(width: 10),
+                              itemBuilder: (_, index) {
+                                final account = accounts[index];
+                                final isSelected = selectedAccount?.id == account.id;
+                                return GestureDetector(
+                                  onTap: () => setSheetState(() => selectedAccount = account),
+                                  child: Container(
+                                    width: 152,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? FinanceDark.accent.withValues(alpha: 0.14) : FinanceDark.card,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: isSelected ? FinanceDark.accent : FinanceDark.divider, width: isSelected ? 2 : 1),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(Icons.account_balance_wallet_outlined, color: isSelected ? FinanceDark.accent : FinanceDark.textSecondary, size: 20),
+                                        const Spacer(),
+                                        Text(account.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FinanceDark.textPrimary, fontSize: 13)),
+                                        const SizedBox(height: 3),
+                                        Text('Rs ${account.balance.toStringAsFixed(2)}', style: const TextStyle(color: FinanceDark.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: DarkActionButton(label: 'Make Payment', icon: Icons.check, onPressed: canConfirm ? () => Navigator.pop(sheetContext, true) : null),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
 
     final amount = double.tryParse(amountController.text.trim()) ?? 0;
-    if (confirmed != true || amount <= 0 || l.id == null) return;
+    final accountId = selectedAccount?.id;
+    amountController.dispose();
+    if (confirmed != true || amount <= 0 || l.id == null || accountId == null) return;
 
     setState(() => isRecording = true);
     try {
@@ -95,6 +178,7 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
       await _firestoreService.addLoanPayment(
         LoanPaymentModel(
           loanId: l.id!,
+          accountId: accountId,
           amount: amount,
           date: PeriodCalculator.formatDate(now),
           createdAt: now.millisecondsSinceEpoch,
@@ -121,12 +205,14 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
   Future<void> _confirmDelete() async {
     final l = loan;
     if (l?.id == null) return;
+    final loanToDelete = l!;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Delete "${l!.name}"?'),
-        content: const Text('This cannot be undone.'),
+        backgroundColor: FinanceDark.card,
+        title: Text('Delete "${loanToDelete.name}"?', style: const TextStyle(color: FinanceDark.textPrimary)),
+        content: const Text('This cannot be undone.', style: TextStyle(color: FinanceDark.textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           TextButton(
@@ -138,7 +224,7 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
     );
 
     if (confirmed != true) return;
-    await _firestoreService.deleteLoan(l!.id!);
+    await _firestoreService.deleteLoan(loanToDelete.id!);
     if (!mounted) return;
     Navigator.pop(context);
   }
@@ -148,10 +234,16 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
     final l = loan;
 
     if (isLoading && l == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primary)));
+      return const Scaffold(
+        backgroundColor: FinanceDark.bg,
+        body: Center(child: CircularProgressIndicator(color: FinanceDark.accent)),
+      );
     }
     if (l == null) {
-      return const Scaffold(body: Center(child: Text('Loan not found')));
+      return const Scaffold(
+        backgroundColor: FinanceDark.bg,
+        body: Center(child: Text('Loan not found', style: TextStyle(color: FinanceDark.textPrimary))),
+      );
     }
 
     final monthlyPayment = l.isBank
@@ -164,11 +256,11 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
         : 0.0;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: FinanceDark.bg,
       appBar: AppBar(
         title: Text(l.name),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: FinanceDark.bg,
+        foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
         actions: [
           Padding(
@@ -176,7 +268,7 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
             child: Center(
               child: StatusBadge(
                 label: l.isBank ? 'Bank' : 'Personal',
-                color: AppColors.primary,
+                color: FinanceDark.accent,
               ),
             ),
           ),
@@ -201,7 +293,7 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
                     Expanded(child: Text(l.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16))),
                     StatusBadge(
                       label: l.isPaid ? 'Paid' : 'Active',
-                      color: l.isPaid ? AppColors.secondary : AppColors.warning,
+                      color: l.isPaid ? FinanceDark.success : FinanceDark.warning,
                     ),
                   ],
                 ),
@@ -222,7 +314,7 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: FinanceDark.card, borderRadius: BorderRadius.circular(14)),
             child: Row(
               children: [
                 Expanded(child: _tabButton('Overview', !showPayments, () => setState(() => showPayments = false))),
@@ -232,11 +324,11 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
           ),
           const SizedBox(height: 16),
           if (!showPayments) ...[
-            AppCard(
+            DarkCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Loan Repayment Progress', style: TextStyle(fontWeight: FontWeight.w800)),
+                  const Text('Loan Repayment Progress', style: TextStyle(fontWeight: FontWeight.w800, color: FinanceDark.textPrimary)),
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -244,8 +336,8 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Principal Paid', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                            Text('Rs ${l.paidAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.secondaryDark)),
+                            Text('Principal Paid', style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
+                            Text('Rs ${l.paidAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, color: FinanceDark.accent)),
                           ],
                         ),
                       ),
@@ -253,28 +345,28 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Remaining Principal', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                            Text('Rs ${l.remaining.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                            Text('Remaining Principal', style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
+                            Text('Rs ${l.remaining.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, color: FinanceDark.textPrimary)),
                           ],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  FinanceProgressBar(value: l.paidAmount, max: l.totalAmount, color: AppColors.secondary),
+                  DarkProgressBar(value: l.paidAmount, max: l.totalAmount, color: FinanceDark.accent),
                 ],
               ),
             ),
             const SizedBox(height: 14),
-            AppCard(
+            DarkCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Loan overview', style: TextStyle(fontWeight: FontWeight.w800)),
-                      StatusBadge(label: l.isBank ? 'Bank Loan' : 'Personal Loan', color: AppColors.primary),
+                      const Text('Loan overview', style: TextStyle(fontWeight: FontWeight.w800, color: FinanceDark.textPrimary)),
+                      StatusBadge(label: l.isBank ? 'Bank Loan' : 'Personal Loan', color: FinanceDark.accent),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -311,25 +403,25 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
             else
               ...payments.map((p) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: AppCard(
+                    child: DarkCard(
                       padding: const EdgeInsets.all(14),
                       child: Row(
                         children: [
                           const CircleAvatar(
                             radius: 14,
                             backgroundColor: Color(0x1A22C55E),
-                            child: Icon(Icons.check, size: 14, color: AppColors.secondaryDark),
+                            child: Icon(Icons.check, size: 14, color: FinanceDark.success),
                           ),
                           const SizedBox(width: 10),
-                          Expanded(child: Text(p.date, style: const TextStyle(fontWeight: FontWeight.w600))),
-                          Text('Rs ${p.amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Expanded(child: Text(p.date, style: const TextStyle(color: FinanceDark.textPrimary, fontWeight: FontWeight.w600))),
+                          Text('Rs ${p.amount.toStringAsFixed(2)}', style: const TextStyle(color: FinanceDark.textPrimary, fontWeight: FontWeight.w800)),
                         ],
                       ),
                     ),
                   )),
           ],
           const SizedBox(height: 20),
-          PrimaryActionButton(
+          DarkActionButton(
             label: isRecording ? 'Recording...' : 'Make Payment',
             icon: Icons.credit_card,
             onPressed: isRecording || l.isPaid ? null : _makePayment,
@@ -357,11 +449,11 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(color: selected ? Colors.white : Colors.transparent, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(color: selected ? FinanceDark.accent.withValues(alpha: 0.14) : Colors.transparent, borderRadius: BorderRadius.circular(10)),
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.w700, color: selected ? AppColors.primary : Colors.grey[500]),
+          style: TextStyle(fontWeight: FontWeight.w700, color: selected ? FinanceDark.accent : FinanceDark.textSecondary),
         ),
       ),
     );
@@ -372,9 +464,9 @@ class _LoanDetailsPageState extends State<LoanDetailsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+          Text(label, style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
           const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w700, color: FinanceDark.textPrimary)),
         ],
       ),
     );

@@ -9,6 +9,7 @@ import '../../utils/frequency.dart';
 import '../../utils/period_calculator.dart';
 import '../../utils/recurring_status.dart';
 import '../../widgets/finance/finance_widgets.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 import 'add_recurring_page.dart';
 import 'recurring_details_page.dart';
 
@@ -90,11 +91,11 @@ class _RecurringListPageState extends State<RecurringListPage> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: FinanceDark.bg,
       appBar: AppBar(
         title: const Text('Recurring', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: FinanceDark.bg,
+        foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
       ),
       body: isLoading
@@ -122,8 +123,10 @@ class _RecurringListPageState extends State<RecurringListPage> {
                       hintText: 'Search expenses...',
                       prefixIcon: const Icon(Icons.search, size: 20),
                       filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                      fillColor: FinanceDark.card,
+                      hintStyle: const TextStyle(color: FinanceDark.textSecondary),
+                      prefixIconColor: FinanceDark.textSecondary,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: FinanceDark.divider)),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -140,8 +143,8 @@ class _RecurringListPageState extends State<RecurringListPage> {
                             selected: selected,
                             onSelected: (_) => setState(() => filter = f),
                             selectedColor: AppColors.primary,
-                            labelStyle: TextStyle(color: selected ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 12),
-                            backgroundColor: Colors.white,
+                            labelStyle: TextStyle(color: selected ? FinanceDark.textPrimary : FinanceDark.textSecondary, fontWeight: FontWeight.w600, fontSize: 12),
+                            backgroundColor: FinanceDark.card,
                           ),
                         );
                       }).toList(),
@@ -186,11 +189,11 @@ class _RecurringListPageState extends State<RecurringListPage> {
   }
 
   Widget _summaryTile(String label, String value, Color color) {
-    return AppCard(
+    return DarkCard(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
         children: [
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w700)),
+          Text(label, style: TextStyle(fontSize: 10, color: FinanceDark.textSecondary, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           Text(value, style: TextStyle(fontWeight: FontWeight.w800, color: color)),
         ],
@@ -206,17 +209,17 @@ class _RecurringListPageState extends State<RecurringListPage> {
       opacity: expense.isActive ? 1 : 0.55,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: AppCard(
+        child: DarkCard(
           onTap: () => _openDetails(expense),
           child: Row(
             children: [
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: FinanceDark.card, borderRadius: BorderRadius.circular(12)),
                 child: Icon(
                   category != null ? getCategoryIcon(category.iconName) : Icons.autorenew,
-                  color: Colors.grey[700],
+                  color: FinanceDark.accent,
                 ),
               ),
               const SizedBox(width: 12),
@@ -237,9 +240,9 @@ class _RecurringListPageState extends State<RecurringListPage> {
                             ? StatusBadge(label: recurringStatusLabel(line.status), color: recurringStatusColor(line.status))
                             : const StatusBadge(label: 'Inactive', color: Colors.grey),
                         const SizedBox(width: 8),
-                        Text(frequencyLabel(expense.frequency), style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                        Text(frequencyLabel(expense.frequency), style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
                         const Spacer(),
-                        Text(expense.nextDueDate, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                        Text(expense.nextDueDate, style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
                       ],
                     ),
                   ],

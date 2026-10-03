@@ -1,6 +1,7 @@
 class RecurringPaymentModel {
   final String? id;
   final String expenseId;
+  final String accountId;
   final String? transactionId;
   final String paymentDate; // 'YYYY-MM-DD'
   final double amount;
@@ -9,6 +10,7 @@ class RecurringPaymentModel {
   const RecurringPaymentModel({
     this.id,
     required this.expenseId,
+    required this.accountId,
     this.transactionId,
     required this.paymentDate,
     required this.amount,
@@ -18,6 +20,7 @@ class RecurringPaymentModel {
   Map<String, dynamic> toFirestore() {
     return {
       'expenseId': expenseId,
+      'accountId': accountId,
       'transactionId': transactionId,
       'paymentDate': paymentDate,
       'amount': amount,
@@ -31,6 +34,7 @@ class RecurringPaymentModel {
     return RecurringPaymentModel(
       id: id,
       expenseId: data['expenseId']?.toString() ?? '',
+      accountId: data['accountId']?.toString() ?? '',
       transactionId: data['transactionId']?.toString(),
       paymentDate: data['paymentDate']?.toString() ?? '',
       amount: (data['amount'] as num?)?.toDouble() ?? 0,

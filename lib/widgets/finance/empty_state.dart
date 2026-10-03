@@ -8,6 +8,7 @@ class FinanceEmptyState extends StatelessWidget {
   final String description;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final bool showIcon;
 
   const FinanceEmptyState({
     super.key,
@@ -16,6 +17,7 @@ class FinanceEmptyState extends StatelessWidget {
     required this.description,
     this.actionLabel,
     this.onAction,
+    this.showIcon = true,
   });
 
   @override
@@ -24,16 +26,18 @@ class FinanceEmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
       child: Column(
         children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              shape: BoxShape.circle,
+          if (showIcon) ...[
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 32, color: Colors.grey[400]),
             ),
-            child: Icon(icon, size: 32, color: Colors.grey[400]),
-          ),
-          const SizedBox(height: 18),
+            const SizedBox(height: 18),
+          ],
           Text(
             title,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),

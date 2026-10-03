@@ -1148,7 +1148,11 @@ class FirestoreService {
   /// so the account balance updates exactly like a manual expense would),
   /// logs it in `recurringPayments`, and advances `nextDueDate` by the
   /// expense's frequency.
-  Future<void> markRecurringPaid(String expenseId) async {
+  Future<void> markRecurringPaid(String expenseId, String accountId) async {
+    if (accountId.trim().isEmpty) {
+      throw ArgumentError('Payment account is required.');
+    }
+
     final expense = await getRecurringExpenseById(expenseId);
     if (expense == null) {
       throw StateError('The recurring expense does not exist.');
@@ -1162,7 +1166,7 @@ class FirestoreService {
       amount: expense.amount,
       type: 'expense',
       categoryId: expense.categoryId,
-      accountId: expense.accountId,
+      accountId: accountId,
       note: 'Recurring: ${expense.name}',
       receiptPath: null,
       date: todayString,
@@ -1175,6 +1179,7 @@ class FirestoreService {
     await _recurringPayments.add(
       RecurringPaymentModel(
         expenseId: expenseId,
+        accountId: accountId,
         transactionId: transactionId,
         paymentDate: todayString,
         amount: expense.amount,
@@ -1265,6 +1270,14 @@ class FirestoreService {
   /// receivedAmount, and — if the lending has a linked account — credits
   /// that account, all in one Firestore transaction.
   Future<void> addLendingRepayment(LendingRepaymentModel repayment) async {
+    if (repayment.accountId.trim().isEmpty) {
+      throw ArgumentError('Repayment account is required.');
+    }
+
+    if (repayment.amount <= 0) {
+      throw ArgumentError('Repayment amount must be greater than zero.');
+    }
+
     final lendingRef = _lendings.doc(repayment.lendingId);
     final repaymentRef = _lendingRepayments.doc();
 
@@ -1274,24 +1287,25 @@ class FirestoreService {
         throw StateError('The lending does not exist.');
       }
       final lending = LendingModel.fromFirestore(lendingSnapshot.id, lendingSnapshot.data()!);
+      if (lending.receivedAmount + repayment.amount > lending.totalAmount) {
+        throw StateError('Repayment cannot exceed the remaining lending balance.');
+      }
       final newReceived = lending.receivedAmount + repayment.amount;
 
-      DocumentReference<Map<String, dynamic>>? accountRef;
-      double? newBalance;
-      if (lending.accountId != null && lending.accountId!.isNotEmpty) {
-        accountRef = _accounts.doc(lending.accountId);
-        final accountSnapshot = await transaction.get(accountRef);
-        if (accountSnapshot.exists && accountSnapshot.data() != null) {
-          final currentBalance = (accountSnapshot.data()!['balance'] as num?)?.toDouble() ?? 0;
-          newBalance = currentBalance + repayment.amount;
-        }
+      final accountRef = _accounts.doc(repayment.accountId);
+      final accountSnapshot = await transaction.get(accountRef);
+      if (!accountSnapshot.exists || accountSnapshot.data() == null) {
+        throw StateError('The selected repayment account does not exist.');
       }
+      final accountData = accountSnapshot.data()!;
+      if (accountData['userId']?.toString() != _currentUserId) {
+        throw StateError('The selected repayment account is not yours.');
+      }
+      final currentBalance = (accountData['balance'] as num?)?.toDouble() ?? 0;
 
       transaction.set(repaymentRef, repayment.toFirestore());
       transaction.update(lendingRef, {'receivedAmount': newReceived});
-      if (accountRef != null && newBalance != null) {
-        transaction.update(accountRef, {'balance': newBalance});
-      }
+      transaction.update(accountRef, {'balance': currentBalance + repayment.amount});
     });
   }
 
@@ -1377,6 +1391,14 @@ class FirestoreService {
   /// a bank loan's nextDueDate by one month, and — if the loan has a
   /// linked account — debits that account, all in one transaction.
   Future<void> addLoanPayment(LoanPaymentModel payment) async {
+    if (payment.accountId.trim().isEmpty) {
+      throw ArgumentError('Payment account is required.');
+    }
+
+    if (payment.amount <= 0) {
+      throw ArgumentError('Payment amount must be greater than zero.');
+    }
+
     final loanRef = _loans.doc(payment.loanId);
     final paymentRef = _loanPayments.doc();
 
@@ -1386,18 +1408,24 @@ class FirestoreService {
         throw StateError('The loan does not exist.');
       }
       final loan = LoanModel.fromFirestore(loanSnapshot.id, loanSnapshot.data()!);
-      final newPaid = loan.paidAmount + payment.amount;
-
-      DocumentReference<Map<String, dynamic>>? accountRef;
-      double? newBalance;
-      if (loan.accountId != null && loan.accountId!.isNotEmpty) {
-        accountRef = _accounts.doc(loan.accountId);
-        final accountSnapshot = await transaction.get(accountRef);
-        if (accountSnapshot.exists && accountSnapshot.data() != null) {
-          final currentBalance = (accountSnapshot.data()!['balance'] as num?)?.toDouble() ?? 0;
-          newBalance = currentBalance - payment.amount;
-        }
+      if (loan.paidAmount + payment.amount > loan.totalAmount) {
+        throw StateError('Payment cannot exceed the remaining loan balance.');
       }
+
+      final accountRef = _accounts.doc(payment.accountId);
+      final accountSnapshot = await transaction.get(accountRef);
+      if (!accountSnapshot.exists || accountSnapshot.data() == null) {
+        throw StateError('The selected payment account does not exist.');
+      }
+      final accountData = accountSnapshot.data()!;
+      if (accountData['userId']?.toString() != _currentUserId) {
+        throw StateError('The selected payment account is not yours.');
+      }
+      final currentBalance = (accountData['balance'] as num?)?.toDouble() ?? 0;
+      if (currentBalance < payment.amount) {
+        throw StateError('The selected account does not have enough balance.');
+      }
+      final newPaid = loan.paidAmount + payment.amount;
 
       String? nextDue = loan.nextDueDate;
       if (loan.isBank && loan.monthlyPaymentDay != null) {
@@ -1413,9 +1441,7 @@ class FirestoreService {
         'paidAmount': newPaid,
         if (nextDue != loan.nextDueDate) 'nextDueDate': nextDue,
       });
-      if (accountRef != null && newBalance != null) {
-        transaction.update(accountRef, {'balance': newBalance});
-      }
+      transaction.update(accountRef, {'balance': currentBalance - payment.amount});
     });
   }
 

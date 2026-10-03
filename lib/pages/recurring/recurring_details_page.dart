@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../constants/colors.dart';
+import '../../models/account_model.dart';
 import '../../models/category_model.dart';
 import '../../models/recurring_expense_model.dart';
 import '../../models/recurring_payment_model.dart';
@@ -10,6 +11,7 @@ import '../../utils/frequency.dart';
 import '../../utils/period_calculator.dart';
 import '../../utils/recurring_status.dart';
 import '../../widgets/finance/finance_widgets.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 import 'add_recurring_page.dart';
 
 class RecurringDetailsPage extends StatefulWidget {
@@ -28,6 +30,7 @@ class _RecurringDetailsPageState extends State<RecurringDetailsPage> {
   RecurringExpenseModel? expense;
   CategoryModel? category;
   List<RecurringPaymentModel> payments = [];
+  List<AccountModel> accounts = [];
   bool isRecording = false;
 
   @override
@@ -51,12 +54,14 @@ class _RecurringDetailsPageState extends State<RecurringDetailsPage> {
 
       final loadedCategory = await _firestoreService.getCategoryById(loadedExpense.categoryId);
       final loadedPayments = await _firestoreService.getRecurringPayments(widget.expenseId);
+      final loadedAccounts = await _firestoreService.getAccounts();
 
       if (!mounted) return;
       setState(() {
         expense = loadedExpense;
         category = loadedCategory;
         payments = loadedPayments;
+        accounts = loadedAccounts;
         isLoading = false;
       });
     } catch (error, stackTrace) {
@@ -68,9 +73,104 @@ class _RecurringDetailsPageState extends State<RecurringDetailsPage> {
   }
 
   Future<void> _recordPayment() async {
+    final e = expense;
+    if (e == null) return;
+
+    AccountModel? selectedAccount = accounts.where((account) => account.id == e.accountId).firstOrNull;
+    selectedAccount ??= accounts.where((account) => account.isDefault).firstOrNull;
+    selectedAccount ??= accounts.isNotEmpty ? accounts.first : null;
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: FinanceDark.bg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: Container(width: 44, height: 4, decoration: BoxDecoration(color: FinanceDark.divider, borderRadius: BorderRadius.circular(4)))),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Pay recurring expense', style: TextStyle(color: FinanceDark.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
+                          SizedBox(height: 6),
+                          Text('Choose the wallet to pay from.', style: TextStyle(color: FinanceDark.textSecondary, fontSize: 15)),
+                        ],
+                      ),
+                    ),
+                    IconButton(onPressed: () => Navigator.pop(sheetContext), icon: const Icon(Icons.close, color: FinanceDark.textSecondary), style: IconButton.styleFrom(backgroundColor: FinanceDark.card)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const DarkSectionLabel('Amount'),
+                DarkCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Payment amount', style: TextStyle(color: FinanceDark.textSecondary)),
+                      Text('Rs ${e.amount.toStringAsFixed(2)}', style: const TextStyle(color: FinanceDark.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                const DarkSectionLabel('Pay from wallet'),
+                SizedBox(
+                  height: 104,
+                  child: accounts.isEmpty
+                      ? const Center(child: Text('No accounts available', style: TextStyle(color: FinanceDark.textSecondary)))
+                      : ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: accounts.length,
+                          separatorBuilder: (context, index) => const SizedBox(width: 10),
+                          itemBuilder: (context, index) {
+                            final account = accounts[index];
+                            final isSelected = selectedAccount?.id == account.id;
+                            return GestureDetector(
+                              onTap: () => setSheetState(() => selectedAccount = account),
+                              child: Container(
+                                width: 152,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(color: isSelected ? FinanceDark.accent.withValues(alpha: 0.14) : FinanceDark.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: isSelected ? FinanceDark.accent : FinanceDark.divider, width: isSelected ? 2 : 1)),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(Icons.account_balance_wallet_outlined, color: isSelected ? FinanceDark.accent : FinanceDark.textSecondary, size: 20),
+                                    const Spacer(),
+                                    Text(account.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FinanceDark.textPrimary, fontSize: 13)),
+                                    const SizedBox(height: 3),
+                                    Text('Rs ${account.balance.toStringAsFixed(2)}', style: const TextStyle(color: FinanceDark.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 20),
+                DarkActionButton(label: 'Record Payment', icon: Icons.check, onPressed: selectedAccount == null ? null : () => Navigator.pop(sheetContext, true)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final accountId = selectedAccount?.id;
+    if (confirmed != true || accountId == null) return;
+
     setState(() => isRecording = true);
     try {
-      await _firestoreService.markRecurringPaid(widget.expenseId);
+      await _firestoreService.markRecurringPaid(widget.expenseId, accountId);
       await _load();
     } catch (error, stackTrace) {
       debugPrint('Error recording payment: $error');
@@ -87,8 +187,9 @@ class _RecurringDetailsPageState extends State<RecurringDetailsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Delete "${e!.name}"?'),
-        content: const Text('This cannot be undone.'),
+        backgroundColor: FinanceDark.card,
+        title: Text('Delete "${e!.name}"?', style: const TextStyle(color: FinanceDark.textPrimary)),
+        content: const Text('This cannot be undone.', style: TextStyle(color: FinanceDark.textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           TextButton(
@@ -135,11 +236,11 @@ class _RecurringDetailsPageState extends State<RecurringDetailsPage> {
     final isOverdue = status == 'overdue';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: FinanceDark.bg,
       appBar: AppBar(
         title: Text(e.name),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: FinanceDark.bg,
+        foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
         actions: [
           IconButton(icon: const Icon(Icons.edit_outlined), onPressed: _edit),
@@ -232,13 +333,13 @@ class _RecurringDetailsPageState extends State<RecurringDetailsPage> {
             ],
           ),
           const SizedBox(height: 12),
-          AppCard(
+          DarkCard(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(Icons.play_circle_outline, size: 16, color: Colors.grey[500]),
+                Icon(Icons.play_circle_outline, size: 16, color: FinanceDark.textSecondary),
                 const SizedBox(width: 8),
-                Text('Start Date', style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w700)),
+                Text('Start Date', style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary, fontWeight: FontWeight.w700)),
                 const Spacer(),
                 Text(
                   e.startDate,
@@ -248,7 +349,7 @@ class _RecurringDetailsPageState extends State<RecurringDetailsPage> {
             ),
           ),
           const SizedBox(height: 16),
-          PrimaryActionButton(
+          DarkActionButton(
             label: isRecording ? 'Recording...' : 'Record Payment',
             icon: Icons.check,
             onPressed: isRecording ? null : _recordPayment,
@@ -289,7 +390,7 @@ class _RecurringDetailsPageState extends State<RecurringDetailsPage> {
   }
 
   Widget _statCard(String label, String value, IconData icon, {bool warn = false}) {
-    return AppCard(
+    return DarkCard(
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,9 +398,9 @@ class _RecurringDetailsPageState extends State<RecurringDetailsPage> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 14, color: Colors.grey[500]),
+              Icon(icon, size: 14, color: FinanceDark.textSecondary),
               const SizedBox(width: 6),
-              Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w700)),
+              Text(label, style: TextStyle(fontSize: 10, color: FinanceDark.textSecondary, fontWeight: FontWeight.w700)),
             ],
           ),
           const SizedBox(height: 4),

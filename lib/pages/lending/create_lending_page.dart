@@ -7,6 +7,7 @@ import '../../models/lending_model.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/period_calculator.dart';
 import '../../widgets/finance/finance_widgets.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 
 class CreateLendingPage extends StatefulWidget {
   final LendingModel? existing;
@@ -141,11 +142,11 @@ class _CreateLendingPageState extends State<CreateLendingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: FinanceDark.bg,
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Lending' : 'Create Lending'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: FinanceDark.bg,
+        foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
         centerTitle: true,
       ),
@@ -160,13 +161,15 @@ class _CreateLendingPageState extends State<CreateLendingPage> {
                   TextField(
                     controller: _nameController,
                     onChanged: (_) => setState(() {}),
+                    style: const TextStyle(color: FinanceDark.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'e.g. Loan to John',
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: FinanceDark.card,
+                      hintStyle: const TextStyle(color: FinanceDark.textSecondary),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: const BorderSide(color: FinanceDark.divider),
                       ),
                     ),
                   ),
@@ -177,12 +180,13 @@ class _CreateLendingPageState extends State<CreateLendingPage> {
                         child: AmountField(
                           label: 'Total Lending Amount',
                           controller: _totalController,
+                          dark: true,
                           onChanged: (_) => setState(() {}),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: AmountField(label: 'Previously Received', controller: _receivedController),
+                        child: AmountField(label: 'Previously Received', controller: _receivedController, dark: true),
                       ),
                     ],
                   ),
@@ -199,32 +203,34 @@ class _CreateLendingPageState extends State<CreateLendingPage> {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       'When do you expect to receive back this lending?',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      style: const TextStyle(fontSize: 11, color: FinanceDark.textSecondary),
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text('Select Account', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  const Text('Select Account', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: FinanceDark.textPrimary)),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Text(
-                      "Please select an account if this is a new lending. If it's an old lending, don't select an account.",
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      'Select the account used for this lending.',
+                      style: const TextStyle(fontSize: 12, color: FinanceDark.textSecondary),
                     ),
                   ),
                   DropdownButtonFormField<String?>(
                     initialValue: selectedAccountId,
+                    style: const TextStyle(color: FinanceDark.textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: FinanceDark.card,
+                      hintStyle: const TextStyle(color: FinanceDark.textSecondary),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: const BorderSide(color: FinanceDark.divider),
                       ),
                     ),
                     hint: const Text('Select Account'),
                     items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('No account (old lending)')),
+                      const DropdownMenuItem<String?>(value: null, child: Text('No account selected')),
                       ...accounts.map((a) => DropdownMenuItem<String?>(value: a.id, child: Text(a.name))),
                     ],
                     onChanged: (value) => setState(() => selectedAccountId = value),
@@ -234,12 +240,13 @@ class _CreateLendingPageState extends State<CreateLendingPage> {
                   TextField(
                     controller: _noteController,
                     maxLines: 3,
+                    style: const TextStyle(color: FinanceDark.textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: FinanceDark.card,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: const BorderSide(color: FinanceDark.divider),
                       ),
                     ),
                   ),
@@ -260,15 +267,15 @@ class _CreateLendingPageState extends State<CreateLendingPage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: FinanceDark.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: FinanceDark.divider),
         ),
         child: Row(
           children: [
-            const Icon(Icons.event, color: Colors.grey),
+            const Icon(Icons.event, color: FinanceDark.textSecondary),
             const SizedBox(width: 10),
-            Text(label),
+            Text(label, style: const TextStyle(color: FinanceDark.textPrimary)),
           ],
         ),
       ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../constants/colors.dart';
 import '../../models/loan_model.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/finance/finance_widgets.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 import 'create_bank_loan_page.dart';
 import 'create_personal_loan_page.dart';
 import 'loan_details_page.dart';
@@ -51,7 +51,7 @@ class _LoansListPageState extends State<LoansListPage> {
   Future<void> _openCreateChooser() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: FinanceDark.bg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetContext) {
         return SafeArea(
@@ -61,13 +61,13 @@ class _LoansListPageState extends State<LoansListPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  leading: const Icon(Icons.account_balance, color: AppColors.primary),
-                  title: const Text('Bank Loan'),
+                  leading: const Icon(Icons.account_balance, color: FinanceDark.accent),
+                  title: const Text('Bank Loan', style: TextStyle(color: FinanceDark.textPrimary)),
                   onTap: () => Navigator.pop(sheetContext, 'bank'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.handshake_outlined, color: AppColors.primary),
-                  title: const Text('Personal Loan'),
+                  leading: const Icon(Icons.handshake_outlined, color: FinanceDark.accent),
+                  title: const Text('Personal Loan', style: TextStyle(color: FinanceDark.textPrimary)),
                   onTap: () => Navigator.pop(sheetContext, 'personal'),
                 ),
               ],
@@ -106,16 +106,16 @@ class _LoansListPageState extends State<LoansListPage> {
     final shown = showPaid ? paid : unpaid;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: FinanceDark.bg,
       appBar: AppBar(
         title: const Text('Loans', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: FinanceDark.bg,
+        foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
         actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(child: CircularProgressIndicator(color: FinanceDark.accent))
           : Column(
               children: [
                 Padding(
@@ -139,9 +139,9 @@ class _LoansListPageState extends State<LoansListPage> {
                           label: Text(f),
                           selected: selected,
                           onSelected: (_) => setState(() => typeFilter = f),
-                          selectedColor: AppColors.primary,
-                          labelStyle: TextStyle(color: selected ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 12),
-                          backgroundColor: Colors.white,
+                          selectedColor: FinanceDark.accent,
+                          labelStyle: TextStyle(color: selected ? FinanceDark.textPrimary : FinanceDark.textSecondary, fontWeight: FontWeight.w600, fontSize: 12),
+                          backgroundColor: FinanceDark.card,
                         ),
                       );
                     }).toList(),
@@ -156,6 +156,7 @@ class _LoansListPageState extends State<LoansListPage> {
                           description: showPaid ? 'Fully paid loans will show up here.' : 'Add a new loan to get started.',
                           actionLabel: showPaid ? null : 'Add Loan',
                           onAction: showPaid ? null : _openCreateChooser,
+                          showIcon: false,
                         )
                       : ListView(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
@@ -166,8 +167,9 @@ class _LoansListPageState extends State<LoansListPage> {
             ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'loansListFab',
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: FinanceDark.accent,
+        foregroundColor: FinanceDark.bg,
+        elevation: 6,
         onPressed: _openCreateChooser,
         child: const Icon(Icons.add),
       ),
@@ -179,11 +181,11 @@ class _LoansListPageState extends State<LoansListPage> {
       onTap: onTap,
       child: Column(
         children: [
-          Icon(icon, color: selected ? AppColors.secondary : Colors.grey[400], size: 22),
+          Icon(icon, color: selected ? FinanceDark.accent : FinanceDark.textSecondary, size: 22),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: selected ? AppColors.secondaryDark : Colors.grey[400])),
+          Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: selected ? FinanceDark.accent : FinanceDark.textSecondary)),
           const SizedBox(height: 8),
-          Container(height: 2, color: selected ? AppColors.secondary : Colors.transparent),
+          Container(height: 2, color: selected ? FinanceDark.accent : Colors.transparent),
         ],
       ),
     );
@@ -192,40 +194,40 @@ class _LoansListPageState extends State<LoansListPage> {
   Widget _card(LoanModel loan) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: AppCard(
+      child: DarkCard(
         onTap: () => _openDetails(loan),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Expanded(child: Text(loan.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
-                Text('Rs ${loan.totalAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.secondaryDark)),
+                Expanded(child: Text(loan.name, style: const TextStyle(color: FinanceDark.textPrimary, fontWeight: FontWeight.w800, fontSize: 16))),
+                Text('Rs ${loan.totalAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, color: FinanceDark.accent)),
               ],
             ),
-            const Divider(height: 20),
+            const Divider(height: 20, color: FinanceDark.divider),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Payment Progress', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                Text('${loan.progressPercent.toStringAsFixed(0)}% paid', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                Text('Payment Progress', style: TextStyle(fontSize: 12, color: FinanceDark.textSecondary)),
+                Text('${loan.progressPercent.toStringAsFixed(0)}% paid', style: TextStyle(fontSize: 12, color: FinanceDark.textSecondary)),
               ],
             ),
             const SizedBox(height: 8),
-            FinanceProgressBar(value: loan.paidAmount, max: loan.totalAmount, color: AppColors.secondary),
+            DarkProgressBar(value: loan.paidAmount, max: loan.totalAmount, color: FinanceDark.accent),
             const SizedBox(height: 10),
             Row(
               children: [
-                Text('${loan.progressPercent.toStringAsFixed(0)}%', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                Text('${loan.progressPercent.toStringAsFixed(0)}%', style: const TextStyle(color: FinanceDark.accent, fontWeight: FontWeight.w800, fontSize: 13)),
                 const SizedBox(width: 8),
-                StatusBadge(label: loan.isBank ? 'Bank' : 'Personal', color: AppColors.primary),
+                StatusBadge(label: loan.isBank ? 'Bank' : 'Personal', color: FinanceDark.accent),
                 const SizedBox(width: 8),
                 StatusBadge(
                   label: loan.isPaid ? 'Paid' : 'Unpaid',
-                  color: loan.isPaid ? AppColors.secondary : AppColors.warning,
+                  color: loan.isPaid ? FinanceDark.success : FinanceDark.warning,
                 ),
                 const Spacer(),
-                Text('Rs ${loan.remaining.toStringAsFixed(2)} left', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                Text('Rs ${loan.remaining.toStringAsFixed(2)} left', style: const TextStyle(color: FinanceDark.textPrimary, fontWeight: FontWeight.w700, fontSize: 12)),
               ],
             ),
           ],

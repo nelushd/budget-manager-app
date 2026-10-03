@@ -1,41 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../constants/colors.dart';
 import '../../models/account_model.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/finance/calculator_keypad.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 
 /// Opens account creation as a bottom sheet — scrollable and sized to its
 /// content instead of a full page push. Returns the created account, or
-/// null if dismissed without saving. [type] sets the new account's type
-/// ('cash', 'bank', 'credit_card'); defaults to 'cash' for the generic "Add
-/// Account" entry points. The name is always free text — "Sampath", "HNB",
-/// "Cash", whatever the user actually calls the account.
+/// null if dismissed without saving. Regular accounts use one shared account
+/// type and icon; credit cards have their own dedicated creation flow.
 Future<AccountModel?> showCreateAccountSheet(
-  BuildContext context, {
-  String type = 'cash',
-}) {
+  BuildContext context,
+) {
   return showModalBottomSheet<AccountModel>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: FinanceDark.bg,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (sheetContext) {
       return Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
-        child: _CreateAccountSheetBody(type: type),
+        child: const _CreateAccountSheetBody(),
       );
     },
   );
 }
 
 class _CreateAccountSheetBody extends StatefulWidget {
-  final String type;
-
-  const _CreateAccountSheetBody({required this.type});
+  const _CreateAccountSheetBody();
 
   @override
   State<_CreateAccountSheetBody> createState() => _CreateAccountSheetBodyState();
@@ -46,8 +41,6 @@ class _CreateAccountSheetBodyState extends State<_CreateAccountSheetBody> {
   final balanceController = TextEditingController();
   bool isSaving = false;
 
-  bool get _isCreditCard => widget.type == 'credit_card';
-
   Future<void> _saveAccount() async {
     if (nameController.text.trim().isEmpty) return;
 
@@ -57,7 +50,7 @@ class _CreateAccountSheetBodyState extends State<_CreateAccountSheetBody> {
       userId: FirebaseAuth.instance.currentUser?.uid ?? '',
       name: nameController.text.trim(),
       balance: double.tryParse(balanceController.text) ?? 0,
-      type: widget.type,
+      type: 'account',
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );
 
@@ -89,20 +82,24 @@ class _CreateAccountSheetBodyState extends State<_CreateAccountSheetBody> {
                 width: 44,
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(4)),
+                decoration: BoxDecoration(color: FinanceDark.divider, borderRadius: BorderRadius.circular(4)),
               ),
             ),
             Text(
-              _isCreditCard ? 'Add Credit Card' : 'Create Account',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              'Create Account',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: FinanceDark.textPrimary),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: nameController,
               autofocus: true,
               onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: FinanceDark.textPrimary),
               decoration: InputDecoration(
-                labelText: _isCreditCard ? 'Card Name' : 'Account Name',
+                labelText: 'Account Name',
+                labelStyle: const TextStyle(color: FinanceDark.textSecondary),
+                enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: FinanceDark.divider)),
+                focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: FinanceDark.accent)),
               ),
             ),
             const SizedBox(height: 16),
@@ -110,9 +107,13 @@ class _CreateAccountSheetBodyState extends State<_CreateAccountSheetBody> {
               controller: balanceController,
               readOnly: true,
               showCursor: true,
-              onTap: () => showCalculatorKeypad(context, controller: balanceController),
+              onTap: () => showCalculatorKeypad(context, controller: balanceController, dark: true),
+              style: const TextStyle(color: FinanceDark.textPrimary),
               decoration: InputDecoration(
-                labelText: _isCreditCard ? 'Current Balance' : 'Initial Balance',
+                labelText: 'Initial Balance',
+                labelStyle: const TextStyle(color: FinanceDark.textSecondary),
+                enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: FinanceDark.divider)),
+                focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: FinanceDark.accent)),
               ),
             ),
             const SizedBox(height: 22),
@@ -121,8 +122,8 @@ class _CreateAccountSheetBodyState extends State<_CreateAccountSheetBody> {
               child: ElevatedButton(
                 onPressed: isSaving || nameController.text.trim().isEmpty ? null : _saveAccount,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: FinanceDark.accent,
+                  foregroundColor: FinanceDark.bg,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),

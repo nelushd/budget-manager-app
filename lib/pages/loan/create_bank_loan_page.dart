@@ -7,6 +7,7 @@ import '../../models/loan_model.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/period_calculator.dart';
 import '../../widgets/finance/finance_widgets.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 
 class CreateBankLoanPage extends StatefulWidget {
   final LoanModel? existing;
@@ -151,11 +152,11 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: FinanceDark.bg,
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Bank Loan' : 'Create Bank Loan'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: FinanceDark.bg,
+        foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
         centerTitle: true,
       ),
@@ -170,15 +171,17 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
                   TextField(
                     controller: _nameController,
                     onChanged: (_) => setState(() {}),
+                    style: const TextStyle(color: FinanceDark.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'e.g. Home Loan',
                       filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                      fillColor: FinanceDark.card,
+                      hintStyle: const TextStyle(color: FinanceDark.textSecondary),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: FinanceDark.divider)),
                     ),
                   ),
                   const SizedBox(height: 18),
-                  AmountField(label: 'Total Loan Amount', controller: _totalController, onChanged: (_) => setState(() {})),
+                  AmountField(label: 'Total Loan Amount', controller: _totalController, dark: true, onChanged: (_) => setState(() {})),
                   const SizedBox(height: 18),
                   const SectionLabel('Loan Start Date'),
                   _dateField(PeriodCalculator.formatDate(startDate), _pickStartDate),
@@ -187,7 +190,7 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Text(
-                      "Please select an account if this is a new loan. If it's an old loan, don't select an account.",
+                      'Select the account where this loan amount will be received.',
                       style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
                   ),
@@ -195,9 +198,9 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
                     initialValue: selectedAccountId,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: FinanceDark.card,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: FinanceDark.divider)),
                     ),
                     hint: const Text('No wallet selected'),
                     items: [
@@ -222,30 +225,33 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
                   const SectionLabel('Loan Monthly Payment Day'),
                   DropdownButtonFormField<int>(
                     initialValue: monthlyPaymentDay,
+                    style: const TextStyle(color: FinanceDark.textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: FinanceDark.card,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: FinanceDark.divider)),
                     ),
-                    items: List.generate(31, (i) => i + 1).map((d) => DropdownMenuItem(value: d, child: Text('$d'))).toList(),
+                    items: List.generate(31, (i) => i + 1)
+                        .map((day) => DropdownMenuItem(value: day, child: Text('$day')))
+                        .toList(),
                     onChanged: (value) {
                       if (value != null) setState(() => monthlyPaymentDay = value);
                     },
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text('This will be used as the payment day for each month.', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    child: const Text('This will be used as the payment day for each month.', style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
                   ),
                   const SizedBox(height: 18),
-                  AmountField(label: 'Custom Installment Amount (Optional)', controller: _installmentController),
+                  AmountField(label: 'Custom Installment Amount (Optional)', controller: _installmentController, dark: true),
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text('Leave empty to use calculated monthly payment', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    child: const Text('Leave empty to use calculated monthly payment', style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
                   ),
                   const SizedBox(height: 18),
                   if (!_isEditing) ...[
-                    AmountField(label: 'Add Paid Amount (Optional)', controller: _paidController),
+                    AmountField(label: 'Add Paid Amount (Optional)', controller: _paidController, dark: true),
                     const SizedBox(height: 18),
                   ],
                   const SizedBox(height: 10),
@@ -263,16 +269,16 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey[600])),
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: FinanceDark.textSecondary)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
           keyboardType: keyboardType,
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.grey[100],
+            fillColor: FinanceDark.card,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: FinanceDark.divider)),
           ),
         ),
       ],
@@ -285,11 +291,11 @@ class _CreateBankLoanPageState extends State<CreateBankLoanPage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: FinanceDark.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: FinanceDark.divider),
         ),
-        child: Row(children: [const Icon(Icons.event, color: Colors.grey), const SizedBox(width: 10), Text(label)]),
+        child: Row(children: [const Icon(Icons.event, color: FinanceDark.textSecondary), const SizedBox(width: 10), Text(label, style: const TextStyle(color: FinanceDark.textPrimary))]),
       ),
     );
   }

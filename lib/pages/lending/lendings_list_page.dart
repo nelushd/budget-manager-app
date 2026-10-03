@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../constants/colors.dart';
+import '../../models/account_model.dart';
 import '../../models/lending_model.dart';
 import '../../models/lending_repayment_model.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/period_calculator.dart';
 import '../../widgets/finance/finance_widgets.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 import 'create_lending_page.dart';
 
 class LendingsListPage extends StatefulWidget {
@@ -20,6 +22,7 @@ class _LendingsListPageState extends State<LendingsListPage> {
 
   bool isLoading = true;
   List<LendingModel> lendings = [];
+  List<AccountModel> accounts = [];
   bool showReceived = false;
 
   @override
@@ -32,9 +35,11 @@ class _LendingsListPageState extends State<LendingsListPage> {
     setState(() => isLoading = true);
     try {
       final loaded = await _firestoreService.getLendings();
+      final loadedAccounts = await _firestoreService.getAccounts();
       if (!mounted) return;
       setState(() {
         lendings = loaded;
+        accounts = loadedAccounts;
         isLoading = false;
       });
     } catch (error, stackTrace) {
@@ -65,8 +70,9 @@ class _LendingsListPageState extends State<LendingsListPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Delete "${lending.name}"?'),
-        content: const Text('This cannot be undone.'),
+        backgroundColor: FinanceDark.card,
+        title: Text('Delete "${lending.name}"?', style: const TextStyle(color: FinanceDark.textPrimary)),
+        content: const Text('This cannot be undone.', style: TextStyle(color: FinanceDark.textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
           TextButton(
@@ -84,58 +90,134 @@ class _LendingsListPageState extends State<LendingsListPage> {
   Future<void> _addRepayment(LendingModel lending) async {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
+    AccountModel? selectedAccount = accounts.where((account) => account.isDefault).firstOrNull;
+    selectedAccount ??= accounts.isNotEmpty ? accounts.first : null;
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: FinanceDark.bg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Add Repayment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 16),
-              AmountField(label: 'Amount Received', controller: amountController),
-              const SizedBox(height: 12),
-              TextField(
-                controller: noteController,
-                decoration: InputDecoration(
-                  labelText: 'Note (optional)',
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final amount = double.tryParse(amountController.text.trim()) ?? 0;
+            final canConfirm = amount > 0 && amount <= lending.remaining && selectedAccount != null;
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(child: Container(width: 44, height: 4, decoration: BoxDecoration(color: FinanceDark.divider, borderRadius: BorderRadius.circular(4)))),
+                    const SizedBox(height: 22),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Add repayment', style: TextStyle(color: FinanceDark.textPrimary, fontSize: 24, fontWeight: FontWeight.w800)),
+                              SizedBox(height: 6),
+                              Text('Record money received for this lending.', style: TextStyle(color: FinanceDark.textSecondary, fontSize: 15)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close, color: FinanceDark.textSecondary),
+                          style: IconButton.styleFrom(backgroundColor: FinanceDark.card),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 26),
+                    const DarkSectionLabel('Amount received'),
+                    DarkAmountTile(
+                      controller: amountController,
+                      onChanged: (_) => setSheetState(() {}),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 7),
+                      child: Text('Remaining: Rs ${lending.remaining.toStringAsFixed(2)}', style: const TextStyle(color: FinanceDark.textSecondary, fontSize: 12)),
+                    ),
+                    const SizedBox(height: 22),
+                    const DarkSectionLabel('Add to wallet'),
+                    SizedBox(
+                      height: 104,
+                      child: accounts.isEmpty
+                          ? const Center(child: Text('No accounts available', style: TextStyle(color: FinanceDark.textSecondary)))
+                          : ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: accounts.length,
+                              separatorBuilder: (context, index) => const SizedBox(width: 10),
+                              itemBuilder: (context, index) {
+                                final account = accounts[index];
+                                final isSelected = selectedAccount?.id == account.id;
+                                return GestureDetector(
+                                  onTap: () => setSheetState(() => selectedAccount = account),
+                                  child: Container(
+                                    width: 152,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? FinanceDark.accent.withValues(alpha: 0.14) : FinanceDark.card,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: isSelected ? FinanceDark.accent : FinanceDark.divider, width: isSelected ? 2 : 1),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(Icons.account_balance_wallet_outlined, color: isSelected ? FinanceDark.accent : FinanceDark.textSecondary, size: 20),
+                                        const Spacer(),
+                                        Text(account.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FinanceDark.textPrimary, fontSize: 13)),
+                                        const SizedBox(height: 3),
+                                        Text('Rs ${account.balance.toStringAsFixed(2)}', style: const TextStyle(color: FinanceDark.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 18),
+                    TextField(
+                      controller: noteController,
+                      style: const TextStyle(color: FinanceDark.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: 'Note (optional)',
+                        filled: true,
+                        fillColor: FinanceDark.card,
+                        labelStyle: const TextStyle(color: FinanceDark.textSecondary),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: FinanceDark.divider)),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    DarkActionButton(label: 'Add Repayment', icon: Icons.check, onPressed: canConfirm ? () => Navigator.pop(sheetContext, true) : null),
+                  ],
                 ),
               ),
-              const SizedBox(height: 18),
-              PrimaryActionButton(
-                label: 'Add Repayment',
-                onPressed: () => Navigator.pop(sheetContext, true),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
 
     final amount = double.tryParse(amountController.text.trim()) ?? 0;
-    if (confirmed != true || amount <= 0 || lending.id == null) return;
+    final accountId = selectedAccount?.id;
+    final note = noteController.text.trim();
+    amountController.dispose();
+    noteController.dispose();
+    if (confirmed != true || amount <= 0 || lending.id == null || accountId == null) return;
 
     final now = DateTime.now();
     await _firestoreService.addLendingRepayment(
       LendingRepaymentModel(
         lendingId: lending.id!,
+        accountId: accountId,
         amount: amount,
         date: PeriodCalculator.formatDate(now),
-        note: noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+        note: note.isEmpty ? null : note,
         createdAt: now.millisecondsSinceEpoch,
       ),
     );
@@ -149,16 +231,16 @@ class _LendingsListPageState extends State<LendingsListPage> {
     final shown = showReceived ? received : outstanding;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: FinanceDark.bg,
       appBar: AppBar(
         title: const Text('Lendings', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: FinanceDark.bg,
+        foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
         actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(child: CircularProgressIndicator(color: FinanceDark.accent))
           : Column(
               children: [
                 Padding(
@@ -181,6 +263,7 @@ class _LendingsListPageState extends State<LendingsListPage> {
                               : 'Add a new lending to get started.',
                           actionLabel: showReceived ? null : 'Add Lending',
                           onAction: showReceived ? null : _openCreate,
+                          showIcon: false,
                         )
                       : ListView(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
@@ -191,8 +274,9 @@ class _LendingsListPageState extends State<LendingsListPage> {
             ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'lendingsListFab',
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: FinanceDark.accent,
+        foregroundColor: FinanceDark.bg,
+        elevation: 6,
         onPressed: _openCreate,
         child: const Icon(Icons.add),
       ),
@@ -204,7 +288,7 @@ class _LendingsListPageState extends State<LendingsListPage> {
       onTap: onTap,
       child: Column(
         children: [
-          Icon(icon, color: selected ? AppColors.secondary : Colors.grey[400], size: 22),
+          Icon(icon, color: selected ? FinanceDark.accent : FinanceDark.textSecondary, size: 22),
           const SizedBox(height: 4),
           Text(
             label,
@@ -212,11 +296,11 @@ class _LendingsListPageState extends State<LendingsListPage> {
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 12,
-              color: selected ? AppColors.secondaryDark : Colors.grey[400],
+              color: selected ? FinanceDark.accent : FinanceDark.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
-          Container(height: 2, color: selected ? AppColors.secondary : Colors.transparent),
+          Container(height: 2, color: selected ? FinanceDark.accent : Colors.transparent),
         ],
       ),
     );
@@ -225,58 +309,59 @@ class _LendingsListPageState extends State<LendingsListPage> {
   Widget _card(LendingModel lending) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: AppCard(
+      child: DarkCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Expanded(
-                  child: Text(lending.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  child: Text(lending.name, style: const TextStyle(color: FinanceDark.textPrimary, fontWeight: FontWeight.w800, fontSize: 16)),
                 ),
                 Text(
                   'Rs ${lending.totalAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.secondaryDark),
+                  style: const TextStyle(fontWeight: FontWeight.w800, color: FinanceDark.accent),
                 ),
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.grey),
+                  icon: const Icon(Icons.more_vert, color: FinanceDark.textSecondary),
                   onSelected: (value) {
                     if (value == 'repay') _addRepayment(lending);
                     if (value == 'edit') _openEdit(lending);
                     if (value == 'delete') _delete(lending);
                   },
+                  color: FinanceDark.card,
                   itemBuilder: (context) => [
                     if (!lending.isSettled)
-                      const PopupMenuItem(value: 'repay', child: Text('Add Repayment')),
-                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      const PopupMenuItem(value: 'repay', child: Text('Add Repayment', style: TextStyle(color: FinanceDark.textPrimary))),
+                    const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(color: FinanceDark.textPrimary))),
+                    const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: FinanceDark.error))),
                   ],
                 ),
               ],
             ),
-            const Divider(height: 20),
+            const Divider(height: 20, color: FinanceDark.divider),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Repayment Progress', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                Text('Repayment Progress', style: TextStyle(fontSize: 12, color: FinanceDark.textSecondary)),
                 Text(
                   lending.isSettled
                       ? 'Rs ${lending.receivedAmount.toStringAsFixed(2)} received'
                       : 'Rs ${lending.remaining.toStringAsFixed(2)} left',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 12, color: FinanceDark.textSecondary),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            FinanceProgressBar(value: lending.receivedAmount, max: lending.totalAmount, color: AppColors.secondary),
+            DarkProgressBar(value: lending.receivedAmount, max: lending.totalAmount, color: FinanceDark.accent),
             const SizedBox(height: 10),
             Row(
               children: [
-                Text('${lending.progressPercent.toStringAsFixed(0)}%', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                Text('${lending.progressPercent.toStringAsFixed(0)}%', style: const TextStyle(color: FinanceDark.accent, fontWeight: FontWeight.w800, fontSize: 13)),
                 const SizedBox(width: 8),
                 StatusBadge(
                   label: lending.isSettled ? 'Settled' : 'Outstanding',
-                  color: lending.isSettled ? AppColors.secondary : AppColors.warning,
+                  color: lending.isSettled ? FinanceDark.success : FinanceDark.warning,
                 ),
               ],
             ),

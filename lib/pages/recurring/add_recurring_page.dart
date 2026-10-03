@@ -10,6 +10,7 @@ import '../../utils/category_icon.dart';
 import '../../utils/frequency.dart';
 import '../../utils/period_calculator.dart';
 import '../../widgets/finance/finance_widgets.dart';
+import '../../widgets/finance/dark_finance_widgets.dart';
 import '../categories/categories_page.dart';
 import '../categories/create_category_page.dart';
 
@@ -188,11 +189,11 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: FinanceDark.bg,
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Recurring Expense' : 'Add Recurring Expense'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: FinanceDark.bg,
+        foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
         centerTitle: true,
       ),
@@ -206,6 +207,7 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                   AmountField(
                     label: 'Amount',
                     controller: _amountController,
+                    dark: true,
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 20),
@@ -215,9 +217,9 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: FinanceDark.card,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[300]!),
+                        border: Border.all(color: FinanceDark.divider),
                       ),
                       child: Row(
                         children: [
@@ -225,7 +227,7 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                             selectedCategory != null
                                 ? getCategoryIcon(selectedCategory!.iconName)
                                 : Icons.category_outlined,
-                            color: selectedCategory != null ? AppColors.primary : Colors.grey,
+                                color: selectedCategory != null ? FinanceDark.accent : FinanceDark.textSecondary,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -233,11 +235,11 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                               selectedCategory?.name ?? 'Select Category',
                               style: TextStyle(
                                 fontWeight: selectedCategory != null ? FontWeight.w700 : FontWeight.w400,
-                                color: selectedCategory != null ? Colors.black87 : Colors.grey[500],
+                                color: selectedCategory != null ? FinanceDark.textPrimary : FinanceDark.textSecondary,
                               ),
                             ),
                           ),
-                          const Icon(Icons.chevron_right, color: Colors.grey),
+                          const Icon(Icons.chevron_right, color: FinanceDark.textSecondary),
                         ],
                       ),
                     ),
@@ -246,13 +248,14 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                   const SectionLabel('Frequency'),
                   DropdownButtonFormField<String>(
                     initialValue: frequency,
+                    style: const TextStyle(color: FinanceDark.textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: FinanceDark.card,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: const BorderSide(color: FinanceDark.divider),
                       ),
                     ),
                     items: _selectableFrequencies
@@ -267,13 +270,14 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                     const SectionLabel('Day of Month'),
                     DropdownButtonFormField<int>(
                       initialValue: dayOfMonth,
+                      style: const TextStyle(color: FinanceDark.textPrimary),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: FinanceDark.card,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                          borderSide: const BorderSide(color: FinanceDark.divider),
                         ),
                       ),
                       items: List.generate(31, (i) => i + 1)
@@ -291,15 +295,15 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: FinanceDark.card,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[300]!),
+                        border: Border.all(color: FinanceDark.divider),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.event, color: Colors.grey),
+                          const Icon(Icons.event, color: FinanceDark.textSecondary),
                           const SizedBox(width: 10),
-                          Text(PeriodCalculator.formatDate(startDate)),
+                          Text(PeriodCalculator.formatDate(startDate), style: const TextStyle(color: FinanceDark.textPrimary)),
                         ],
                       ),
                     ),
