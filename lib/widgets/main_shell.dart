@@ -5,9 +5,6 @@ import '../pages/budget/budgets_list_page.dart';
 import '../pages/home/home_page.dart';
 import '../pages/insights/insights_page.dart';
 
-/// Bottom nav shell: Home, Budget, Analytics, and AI Insights — Accounts,
-/// Profile, Recurring, and SMS Drafts stay reachable via the existing
-/// drawer / FAB quick actions rather than adding more tabs.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 

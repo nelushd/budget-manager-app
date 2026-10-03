@@ -8,7 +8,6 @@ import '../../constants/colors.dart';
 import '../../models/account_model.dart';
 import '../../models/activity_entry.dart';
 import '../../services/firestore_service.dart';
-import '../../services/sms_draft_store.dart';
 import '../../utils/activity_builder.dart';
 import '../../utils/period_calculator.dart';
 import '../../widgets/sidebar_drawer.dart';
@@ -18,23 +17,16 @@ import '../budget/create_budget_page.dart';
 import '../lending/lendings_list_page.dart';
 import '../loan/loans_list_page.dart';
 import '../recurring/recurring_list_page.dart';
-import '../sms/sms_drafts_page.dart';
 import '../transaction/add_transaction_page.dart';
 import '../transaction/transfer_page.dart';
 import '../transactions_page.dart';
 import '../profile_page.dart';
 
-/// Dark palette for this page only — matches the reference "Money Master"
-/// screenshots (near-black navy background, dark slate cards, mint-teal
-/// accent). Deliberately kept local rather than folded into [AppColors] so
-/// the dark reskin stays scoped to the pages it's been applied to instead
-/// of silently changing every other screen that reads AppColors.
+
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);
-  // Noticeably lighter than [bg] (rather than the original near-black
-  // 0xFF141B24, which barely separated from the page behind it) so every
-  // card reads as its own surface instead of leaning on its border alone.
+
   static const Color card = Color(0xFF1B2430);
   static const Color accent = Color(0xFF2DD4A7);
   static const Color textPrimary = Colors.white;
@@ -228,8 +220,6 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     const SizedBox(height: 20),
                     _netCashFlowCard(),
-                    const SizedBox(height: 20),
-                    const _SmsDraftsBanner(),
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -1020,56 +1010,3 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-/// Small dismissible-by-navigation banner: only shows when there are SMS
-/// drafts waiting for review, so it stays out of the way otherwise.
-class _SmsDraftsBanner extends StatelessWidget {
-  const _SmsDraftsBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: SmsDraftStore.instance.getDrafts(),
-      builder: (context, snapshot) {
-        final count = snapshot.data?.length ?? 0;
-        if (count == 0) return const SizedBox.shrink();
-
-        return Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: Material(
-            color: _Dark.accent.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SmsDraftsPage()),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    const Icon(Icons.sms_outlined, color: _Dark.accent),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '$count SMS draft${count == 1 ? '' : 's'} pending review',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: _Dark.textPrimary,
-                        ),
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: _Dark.textSecondary),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}

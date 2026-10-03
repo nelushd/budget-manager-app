@@ -45,10 +45,6 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
 
-  /// Firebase Auth has no concept of "username" — it only signs in by email.
-  /// A public `usernames/{usernameKey}` doc maps a normalized username to the
-  /// account's email so the login screen can resolve one to the other before
-  /// calling Firebase's email/password sign-in.
   String _usernameKey(String value) =>
       value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
 
@@ -104,9 +100,7 @@ class AuthService {
     return credential;
   }
 
-  /// Signs in with a username. For backward compatibility with accounts
-  /// created before username-based login existed, an input containing '@'
-  /// is treated as a raw email instead of a username.
+
   Future<UserCredential> signIn(String usernameOrEmail, String password) async {
     final input = usernameOrEmail.trim();
 
@@ -132,10 +126,6 @@ class AuthService {
     return _auth.signInWithEmailAndPassword(email: email, password: password);
   }
 
-  /// Registers the public username lookup for an account that signed in with
-  /// its raw email (pre-dating username-based login), deriving a username
-  /// from its display name or the local part of its email. A no-op once that
-  /// username is already registered.
   Future<void> _backfillUsername(User? user) async {
     if (user == null || user.email == null) {
       return;

@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'calculator_keypad.dart';
 
-/// Labeled amount input. Tapping it opens the calculator-style keypad
-/// (digits plus +, -, ×, ÷) instead of the system keyboard, used for every
-/// amount field across the app.
 class AmountField extends StatelessWidget {
   final String label;
   final TextEditingController controller;

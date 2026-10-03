@@ -6,7 +6,7 @@ import '../../models/transfer_model.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/finance/calculator_keypad.dart';
 
-/// Dark palette matching Home/Analytics/Accounts/Transactions.
+
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);

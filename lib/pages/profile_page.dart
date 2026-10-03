@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/auth_service.dart';
 
-/// Dark palette matching Home/Analytics/Transactions/Add Transaction/SMS Parser.
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);
@@ -46,10 +45,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _logout() async {
     await _authService.signOut();
-    // Profile is a pushed route sitting on top of AuthGate's root route.
-    // Signing out swaps that root route to LoginPage, but a pushed route
-    // never auto-pops just because what's under it changed — without this,
-    // the app looks stuck on Profile.
     if (!mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
   }

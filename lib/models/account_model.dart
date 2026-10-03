@@ -1,9 +1,4 @@
-/// 'cash' | 'bank' | 'credit_card'. Every type shares the same core
-/// fields (balance, transactions, transfers), so adding a new type never
-/// needs changes outside where the type itself is shown or filtered on.
-/// Credit cards additionally use the credit-card-only fields below —
-/// [balance] means "amount currently used" for a credit card (so
-/// available = [creditLimit] - [balance]), instead of "amount owned".
+
 class AccountModel {
   final String? id;
   final String userId;
@@ -15,10 +10,10 @@ class AccountModel {
   final bool isIncluded;
   final int createdAt;
 
-  // Credit-card-only fields — null/unset for cash and bank accounts.
+  
   final double? creditLimit;
-  final int? billingStartDay; // day of month, 1-31
-  final int? dueDay; // day of month, 1-31
+  final int? billingStartDay;
+  final int? dueDay;
   final double? interestRatePercent;
   final double? minimumPaymentPercent;
 
@@ -39,8 +34,6 @@ class AccountModel {
     this.minimumPaymentPercent,
   });
 
-  /// Available credit remaining, for a credit-card account. Null when
-  /// there's no credit limit set (or this isn't a credit card).
   double? get availableCredit => creditLimit == null ? null : creditLimit! - balance;
 
   Map<String, dynamic> toFirestore() {

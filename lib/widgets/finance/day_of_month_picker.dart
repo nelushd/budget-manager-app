@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Dark bottom sheet for picking a day-of-month (1-31) — used for a credit
-/// card's billing start day and due day, which repeat every month rather
-/// than pointing at one specific calendar date.
 Future<int?> showDayOfMonthPicker(
   BuildContext context, {
   required String title,

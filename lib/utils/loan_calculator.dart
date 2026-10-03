@@ -1,8 +1,5 @@
 import 'dart:math';
 
-/// Standard amortized monthly payment for a bank loan. A custom installment
-/// amount always wins if set. With no term, there's nothing to calculate
-/// yet (matches the "Rs 0.00" shown for an incomplete loan in the app).
 double calculateMonthlyPayment({
   required double principal,
   double? interestRatePercent,

@@ -128,8 +128,6 @@ class ReceiptScannerService {
       }
     }
 
-    // Fallback: no keyword found anywhere — return the largest plausible
-    // monetary value.
     final List<double> possibleAmounts = [];
 
     for (final TextLine line in lines) {

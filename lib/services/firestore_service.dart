@@ -273,10 +273,6 @@ class FirestoreService {
     return document.id;
   }
 
-  /// Sentinel [CategoryModel.userId] for the shared reference list (Salary,
-  /// Rent, Groceries, ...) — not owned by any one user, readable by every
-  /// signed-in user, so a brand-new signup sees a populated category picker
-  /// immediately instead of starting from zero.
   static const String kGlobalCategoryUserId = '__global__';
 
   static const List<Map<String, String>> _additionalGlobalIncomeCategories = [
@@ -530,17 +526,6 @@ class FirestoreService {
     await _categories.doc(categoryId).delete();
   }
 
-  // ============================================================
-  // TRANSACTIONS
-  // ============================================================
-
-  /// Signed balance delta for one transaction against one account.
-  ///
-  /// A cash/bank account's `balance` is money owned: income adds to it,
-  /// expense subtracts. A `credit_card` account's `balance` is read
-  /// elsewhere (see [AccountModel.availableCredit]) as money currently
-  /// owed, so the sign is inverted there — an expense increases what's
-  /// owed, and income (a refund or credit) reduces it.
   double _signedBalanceChange(
     String? accountType,
     String transactionType,

@@ -13,7 +13,6 @@ import '../../models/receipt_scan_result.dart';
 import '../../services/receipt_scanner_service.dart';
 import '../../widgets/finance/calculator_keypad.dart';
 
-/// Dark palette matching Home/Analytics/Accounts/Transactions/Transfer/SMS.
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);

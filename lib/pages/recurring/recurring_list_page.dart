@@ -21,7 +21,7 @@ class RecurringListPage extends StatefulWidget {
 
 class _RecurringLine {
   final RecurringExpenseModel expense;
-  final String status; // upcoming | overdue | paid
+  final String status; 
 
   _RecurringLine({required this.expense, required this.status});
 }

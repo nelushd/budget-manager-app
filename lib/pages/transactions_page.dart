@@ -5,9 +5,6 @@ import '../models/activity_entry.dart';
 import '../services/firestore_service.dart';
 import '../utils/activity_builder.dart';
 
-/// Dark palette matching Home/Analytics/Accounts — this is the "See all"
-/// destination reached from Home's Recent Transactions, so it should read
-/// as a continuation of that page, not a jump back to a light screen.
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);
@@ -20,9 +17,6 @@ class _Dark {
   static const Color error = Color(0xFFF87171);
 }
 
-/// Which slice of the activity feed a [TransactionsPage] opens showing.
-/// 'cashIn'/'cashOut' include loan/lending money movements; 'income'/
-/// 'expense' are the narrower categorized-transaction subset.
 class TransactionsPage extends StatefulWidget {
   final String initialMode;
   final String title;

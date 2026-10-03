@@ -13,9 +13,6 @@ import '../../widgets/finance/finance_widgets.dart';
 import '../categories/categories_page.dart';
 import '../categories/create_category_page.dart';
 
-/// Frequencies selectable here — daily/bi-weekly are still supported by the
-/// data model (an older expense could still have one), just not offered
-/// when creating or editing.
 const List<String> _selectableFrequencies = ['weekly', 'monthly', 'quarterly', 'yearly'];
 
 class AddRecurringPage extends StatefulWidget {

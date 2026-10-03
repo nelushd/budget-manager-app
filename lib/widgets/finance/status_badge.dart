@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Generic label+color pill. Each module maps its own computed status
-/// string to a (label, color) pair and passes it in here — status is never
-/// baked into this shared widget, since it's always computed, not stored.
 class StatusBadge extends StatelessWidget {
   final String label;
   final Color color;
