@@ -42,12 +42,14 @@ class FinanceEmptyState extends StatelessWidget {
             title,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey[500], height: 1.4),
-          ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[500], height: 1.4),
+            ),
+          ],
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 22),
             PrimaryActionButton(label: actionLabel!, onPressed: onAction),

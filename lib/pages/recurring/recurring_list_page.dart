@@ -22,7 +22,7 @@ class RecurringListPage extends StatefulWidget {
 
 class _RecurringLine {
   final RecurringExpenseModel expense;
-  final String status; 
+  final String status;
 
   _RecurringLine({required this.expense, required this.status});
 }
@@ -55,19 +55,29 @@ class _RecurringListPageState extends State<RecurringListPage> {
       for (final expense in expenses) {
         bool paidToday = false;
         if (expense.id != null) {
-          final payments = await _firestoreService.getRecurringPayments(expense.id!);
+          final payments = await _firestoreService.getRecurringPayments(
+            expense.id!,
+          );
           paidToday = payments.any((p) => p.paymentDate == today);
         }
-        newLines.add(_RecurringLine(
-          expense: expense,
-          status: computeRecurringStatus(nextDueDate: expense.nextDueDate, paidToday: paidToday),
-        ));
+        newLines.add(
+          _RecurringLine(
+            expense: expense,
+            status: computeRecurringStatus(
+              nextDueDate: expense.nextDueDate,
+              paidToday: paidToday,
+            ),
+          ),
+        );
       }
 
       if (!mounted) return;
       setState(() {
         lines = newLines;
-        categoriesById = {for (final c in categories) if (c.id != null) c.id!: c};
+        categoriesById = {
+          for (final c in categories)
+            if (c.id != null) c.id!: c,
+        };
         isLoading = false;
       });
     } catch (error, stackTrace) {
@@ -82,24 +92,35 @@ class _RecurringListPageState extends State<RecurringListPage> {
   Widget build(BuildContext context) {
     final overdue = lines.where((l) => l.status == 'overdue').length;
     final upcoming = lines.where((l) => l.status == 'upcoming').length;
-    final monthly = lines.fold<double>(0, (s, l) => s + _monthlyFactor(l.expense.frequency) * l.expense.amount);
+    final monthly = lines.fold<double>(
+      0,
+      (s, l) => s + _monthlyFactor(l.expense.frequency) * l.expense.amount,
+    );
 
     final filtered = lines.where((l) {
-      final matchesSearch = l.expense.name.toLowerCase().contains(search.toLowerCase());
-      final matchesFilter = filter == 'All' || recurringStatusLabel(l.status) == filter;
+      final matchesSearch = l.expense.name.toLowerCase().contains(
+        search.toLowerCase(),
+      );
+      final matchesFilter =
+          filter == 'All' || recurringStatusLabel(l.status) == filter;
       return matchesSearch && matchesFilter;
     }).toList();
 
     return Scaffold(
       backgroundColor: FinanceDark.bg,
       appBar: AppBar(
-        title: const Text('Recurring', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Recurring',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         backgroundColor: FinanceDark.bg,
         foregroundColor: FinanceDark.textPrimary,
         elevation: 0,
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
@@ -108,11 +129,29 @@ class _RecurringListPageState extends State<RecurringListPage> {
                   if (lines.isNotEmpty) ...[
                     Row(
                       children: [
-                        Expanded(child: _summaryTile('Monthly', 'Rs ${monthly.toStringAsFixed(0)}', AppColors.primary)),
+                        Expanded(
+                          child: _summaryTile(
+                            'Monthly',
+                            'Rs ${monthly.toStringAsFixed(0)}',
+                            AppColors.primary,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: _summaryTile('Upcoming', '$upcoming', AppColors.warning)),
+                        Expanded(
+                          child: _summaryTile(
+                            'Upcoming',
+                            '$upcoming',
+                            AppColors.warning,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: _summaryTile('Overdue', '$overdue', AppColors.error)),
+                        Expanded(
+                          child: _summaryTile(
+                            'Overdue',
+                            '$overdue',
+                            AppColors.error,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -124,9 +163,16 @@ class _RecurringListPageState extends State<RecurringListPage> {
                       prefixIcon: const Icon(Icons.search, size: 20),
                       filled: true,
                       fillColor: FinanceDark.card,
-                      hintStyle: const TextStyle(color: FinanceDark.textSecondary),
+                      hintStyle: const TextStyle(
+                        color: FinanceDark.textSecondary,
+                      ),
                       prefixIconColor: FinanceDark.textSecondary,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: FinanceDark.divider)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: FinanceDark.divider,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -143,7 +189,13 @@ class _RecurringListPageState extends State<RecurringListPage> {
                             selected: selected,
                             onSelected: (_) => setState(() => filter = f),
                             selectedColor: AppColors.primary,
-                            labelStyle: TextStyle(color: selected ? FinanceDark.textPrimary : FinanceDark.textSecondary, fontWeight: FontWeight.w600, fontSize: 12),
+                            labelStyle: TextStyle(
+                              color: selected
+                                  ? FinanceDark.textPrimary
+                                  : FinanceDark.textSecondary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
                             backgroundColor: FinanceDark.card,
                           ),
                         );
@@ -154,10 +206,13 @@ class _RecurringListPageState extends State<RecurringListPage> {
                   if (filtered.isEmpty)
                     FinanceEmptyState(
                       icon: Icons.autorenew_rounded,
-                      title: search.isNotEmpty ? 'No results found' : 'No recurring expenses',
+                      showIcon: false,
+                      title: search.isNotEmpty
+                          ? 'No results found'
+                          : 'No recurring expenses',
                       description: search.isNotEmpty
                           ? 'Try a different search term.'
-                          : 'Add subscriptions, rent, insurance, and other regular payments.',
+                          : '',
                       actionLabel: search.isNotEmpty ? null : 'Add Expense',
                       onAction: search.isNotEmpty ? null : _openAdd,
                     )
@@ -166,7 +221,10 @@ class _RecurringListPageState extends State<RecurringListPage> {
                 ],
               ),
             ),
-      floatingActionButton: FinanceFab(label: 'Add Expense', onPressed: _openAdd),
+      floatingActionButton: FinanceFab(
+        label: 'Add Expense',
+        onPressed: _openAdd,
+      ),
     );
   }
 
@@ -193,9 +251,19 @@ class _RecurringListPageState extends State<RecurringListPage> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
         children: [
-          Text(label, style: TextStyle(fontSize: 10, color: FinanceDark.textSecondary, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: FinanceDark.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontWeight: FontWeight.w800, color: color)),
+          Text(
+            value,
+            style: TextStyle(fontWeight: FontWeight.w800, color: color),
+          ),
         ],
       ),
     );
@@ -216,9 +284,14 @@ class _RecurringListPageState extends State<RecurringListPage> {
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(color: FinanceDark.card, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: FinanceDark.card,
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Icon(
-                  category != null ? getCategoryIcon(category.iconName) : Icons.autorenew,
+                  category != null
+                      ? getCategoryIcon(category.iconName)
+                      : Icons.autorenew,
                   color: FinanceDark.accent,
                 ),
               ),
@@ -229,20 +302,46 @@ class _RecurringListPageState extends State<RecurringListPage> {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Text(expense.name, style: const TextStyle(fontWeight: FontWeight.w700))),
-                        Text('Rs ${expense.amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                        Expanded(
+                          child: Text(
+                            expense.name,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        Text(
+                          'Rs ${expense.amount.toStringAsFixed(0)}',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Row(
                       children: [
                         expense.isActive
-                            ? StatusBadge(label: recurringStatusLabel(line.status), color: recurringStatusColor(line.status))
-                            : const StatusBadge(label: 'Inactive', color: Colors.grey),
+                            ? StatusBadge(
+                                label: recurringStatusLabel(line.status),
+                                color: recurringStatusColor(line.status),
+                              )
+                            : const StatusBadge(
+                                label: 'Inactive',
+                                color: Colors.grey,
+                              ),
                         const SizedBox(width: 8),
-                        Text(frequencyLabel(expense.frequency), style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
+                        Text(
+                          frequencyLabel(expense.frequency),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: FinanceDark.textSecondary,
+                          ),
+                        ),
                         const Spacer(),
-                        Text(expense.nextDueDate, style: TextStyle(fontSize: 11, color: FinanceDark.textSecondary)),
+                        Text(
+                          expense.nextDueDate,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: FinanceDark.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -266,7 +365,9 @@ class _RecurringListPageState extends State<RecurringListPage> {
   Future<void> _openDetails(RecurringExpenseModel expense) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => RecurringDetailsPage(expenseId: expense.id!)),
+      MaterialPageRoute(
+        builder: (_) => RecurringDetailsPage(expenseId: expense.id!),
+      ),
     );
     _load();
   }
