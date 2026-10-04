@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'transaction_model.dart';
+
 class ActivityEntry {
   final String title;
   final String subtitle;
@@ -10,6 +12,7 @@ class ActivityEntry {
   final DateTime date;
   final String accountName;
   final IconData icon;
+  final TransactionModel? transaction;
 
   const ActivityEntry({
     required this.title,
@@ -21,5 +24,6 @@ class ActivityEntry {
     required this.date,
     required this.accountName,
     required this.icon,
+    this.transaction,
   });
 }

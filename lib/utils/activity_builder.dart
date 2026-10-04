@@ -44,7 +44,8 @@ Future<List<ActivityEntry>> loadActivityFeed(FirestoreService service) async {
   ]);
   final loanPaymentsByLoanId = <String, List<LoanPaymentModel>>{
     for (var i = 0; i < loanPaymentLists.length; i++)
-      loans.where((loan) => loan.id != null).toList()[i].id!: loanPaymentLists[i],
+      loans.where((loan) => loan.id != null).toList()[i].id!:
+          loanPaymentLists[i],
   };
 
   final lendingRepaymentLists = await Future.wait([
@@ -53,7 +54,8 @@ Future<List<ActivityEntry>> loadActivityFeed(FirestoreService service) async {
   ]);
   final lendingRepaymentsByLendingId = <String, List<LendingRepaymentModel>>{
     for (var i = 0; i < lendingRepaymentLists.length; i++)
-      lendings.where((lending) => lending.id != null).toList()[i].id!: lendingRepaymentLists[i],
+      lendings.where((lending) => lending.id != null).toList()[i].id!:
+          lendingRepaymentLists[i],
   };
 
   return buildActivityFeed(
@@ -79,7 +81,8 @@ List<ActivityEntry> buildActivityFeed({
   required List<LoanModel> loans,
   required Map<String, List<LoanPaymentModel>> loanPaymentsByLoanId,
   required List<LendingModel> lendings,
-  required Map<String, List<LendingRepaymentModel>> lendingRepaymentsByLendingId,
+  required Map<String, List<LendingRepaymentModel>>
+  lendingRepaymentsByLendingId,
 }) {
   final entries = <ActivityEntry>[];
 
@@ -87,80 +90,98 @@ List<ActivityEntry> buildActivityFeed({
     final category = categoriesById[transaction.categoryId];
     final account = accountsById[transaction.accountId];
 
-    entries.add(ActivityEntry(
-      title: category?.name ?? 'Uncategorized',
-      subtitle: account?.name ?? '',
-      note: transaction.note,
-      amount: transaction.amount,
-      isInflow: transaction.type == 'income',
-      kind: transaction.type,
-      date: PeriodCalculator.parseDate(transaction.date),
-      accountName: account?.name ?? '',
-      icon: getCategoryIcon(category?.iconName ?? 'category'),
-    ));
+    entries.add(
+      ActivityEntry(
+        title: category?.name ?? 'Uncategorized',
+        subtitle: account?.name ?? '',
+        note: transaction.note,
+        amount: transaction.amount,
+        isInflow: transaction.type == 'income',
+        kind: transaction.type,
+        date: PeriodCalculator.parseDate(transaction.date),
+        accountName: account?.name ?? '',
+        icon: getCategoryIcon(category?.iconName ?? 'category'),
+        transaction: transaction,
+      ),
+    );
   }
 
   for (final loan in loans) {
-    final account = loan.accountId != null ? accountsById[loan.accountId] : null;
+    final account = loan.accountId != null
+        ? accountsById[loan.accountId]
+        : null;
 
     if (account != null) {
-      entries.add(ActivityEntry(
-        title: 'Loan - ${loan.name}',
-        subtitle: account.name,
-        note: 'Loan received: ${loan.name}',
-        amount: loan.totalAmount,
-        isInflow: true,
-        kind: 'loan',
-        date: PeriodCalculator.parseDate(loan.startDate),
-        accountName: account.name,
-        icon: Icons.account_balance,
-      ));
+      entries.add(
+        ActivityEntry(
+          title: 'Loan - ${loan.name}',
+          subtitle: account.name,
+          note: 'Loan received: ${loan.name}',
+          amount: loan.totalAmount,
+          isInflow: true,
+          kind: 'loan',
+          date: PeriodCalculator.parseDate(loan.startDate),
+          accountName: account.name,
+          icon: Icons.account_balance,
+        ),
+      );
     }
 
-    for (final payment in loanPaymentsByLoanId[loan.id] ?? const <LoanPaymentModel>[]) {
-      entries.add(ActivityEntry(
-        title: 'Loan Payment - ${loan.name}',
-        subtitle: account?.name ?? '',
-        note: 'Payment for: ${loan.name}',
-        amount: payment.amount,
-        isInflow: false,
-        kind: 'loan',
-        date: PeriodCalculator.parseDate(payment.date),
-        accountName: account?.name ?? '',
-        icon: Icons.account_balance,
-      ));
+    for (final payment
+        in loanPaymentsByLoanId[loan.id] ?? const <LoanPaymentModel>[]) {
+      entries.add(
+        ActivityEntry(
+          title: 'Loan Payment - ${loan.name}',
+          subtitle: account?.name ?? '',
+          note: 'Payment for: ${loan.name}',
+          amount: payment.amount,
+          isInflow: false,
+          kind: 'loan',
+          date: PeriodCalculator.parseDate(payment.date),
+          accountName: account?.name ?? '',
+          icon: Icons.account_balance,
+        ),
+      );
     }
   }
 
   for (final lending in lendings) {
-    final account = lending.accountId != null ? accountsById[lending.accountId] : null;
+    final account = lending.accountId != null
+        ? accountsById[lending.accountId]
+        : null;
 
     if (account != null) {
-      entries.add(ActivityEntry(
-        title: 'Lending - ${lending.name}',
-        subtitle: account.name,
-        note: 'Lent to: ${lending.name}',
-        amount: lending.totalAmount,
-        isInflow: false,
-        kind: 'lending',
-        date: PeriodCalculator.parseDate(lending.startDate),
-        accountName: account.name,
-        icon: Icons.handshake_outlined,
-      ));
+      entries.add(
+        ActivityEntry(
+          title: 'Lending - ${lending.name}',
+          subtitle: account.name,
+          note: 'Lent to: ${lending.name}',
+          amount: lending.totalAmount,
+          isInflow: false,
+          kind: 'lending',
+          date: PeriodCalculator.parseDate(lending.startDate),
+          accountName: account.name,
+          icon: Icons.handshake_outlined,
+        ),
+      );
     }
 
-    for (final repayment in lendingRepaymentsByLendingId[lending.id] ?? const <LendingRepaymentModel>[]) {
-      entries.add(ActivityEntry(
-        title: 'Receive Lending - ${lending.name}',
-        subtitle: account?.name ?? '',
-        note: 'Payment received for: ${lending.name}',
-        amount: repayment.amount,
-        isInflow: true,
-        kind: 'lending',
-        date: PeriodCalculator.parseDate(repayment.date),
-        accountName: account?.name ?? '',
-        icon: Icons.handshake_outlined,
-      ));
+    for (final repayment
+        in lendingRepaymentsByLendingId[lending.id] ??
+            const <LendingRepaymentModel>[]) {
+      entries.add(
+        ActivityEntry(
+          title: 'Receive Lending - ${lending.name}',
+          subtitle: account?.name ?? '',
+          note: 'Payment received for: ${lending.name}',
+          amount: repayment.amount,
+          isInflow: true,
+          kind: 'lending',
+          date: PeriodCalculator.parseDate(repayment.date),
+          accountName: account?.name ?? '',
+          icon: Icons.handshake_outlined,
+        ),
+      );
     }
   }
 

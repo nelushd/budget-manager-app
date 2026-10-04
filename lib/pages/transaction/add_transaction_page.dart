@@ -27,10 +27,12 @@ class _Dark {
 
 class AddTransactionPage extends StatefulWidget {
   final String transactionType; // income or expense
+  final TransactionModel? editTransaction;
 
   const AddTransactionPage({
     super.key,
     required this.transactionType,
+    this.editTransaction,
   });
 
   @override
@@ -38,7 +40,8 @@ class AddTransactionPage extends StatefulWidget {
 }
 
 class _AddTransactionPageState extends State<AddTransactionPage> {
-  final ReceiptScannerService receiptScannerService = ReceiptScannerService.instance;
+  final ReceiptScannerService receiptScannerService =
+      ReceiptScannerService.instance;
   bool isScanningReceipt = false;
   final FirestoreService firestoreService = FirestoreService.instance;
   final TextEditingController amountController = TextEditingController();
@@ -61,7 +64,20 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   void initState() {
     super.initState();
 
-    selectedType = widget.transactionType;
+    selectedType = widget.editTransaction?.type ?? widget.transactionType;
+
+    final transaction = widget.editTransaction;
+    if (transaction != null) {
+      amountController.text = transaction.amount.toStringAsFixed(2);
+      selectedDate = DateTime.tryParse(transaction.date) ?? selectedDate;
+      final timeParts = transaction.time.split(':');
+      if (timeParts.length >= 2) {
+        selectedTime = TimeOfDay(
+          hour: int.tryParse(timeParts[0]) ?? selectedTime.hour,
+          minute: int.tryParse(timeParts[1]) ?? selectedTime.minute,
+        );
+      }
+    }
 
     amountController.addListener(_refreshPage);
 
@@ -95,9 +111,12 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
   Future<void> loadData() async {
     try {
+      final transaction = widget.editTransaction;
       final loadedAccounts = await firestoreService.getAccounts();
 
-      final loadedCategories = await firestoreService.getCategoriesByType(selectedType);
+      final loadedCategories = await firestoreService.getCategoriesByType(
+        selectedType,
+      );
 
       if (!mounted) return;
 
@@ -109,15 +128,21 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         if (accounts.isNotEmpty) {
           final selectedAccountStillExists =
               selectedAccount != null &&
-                  accounts.any(
-                    (account) => account.id == selectedAccount!.id,
-                  );
+              accounts.any((account) => account.id == selectedAccount!.id);
 
           if (!selectedAccountStillExists) {
-            final defaultAccounts =
-                accounts.where((account) => account.isDefault).toList();
+            final defaultAccounts = accounts
+                .where((account) => account.isDefault)
+                .toList();
 
-            selectedAccount = defaultAccounts.isNotEmpty
+            selectedAccount = transaction != null
+                ? accounts.firstWhere(
+                    (account) => account.id == transaction.accountId,
+                    orElse: () => defaultAccounts.isNotEmpty
+                        ? defaultAccounts.first
+                        : accounts.first,
+                  )
+                : defaultAccounts.isNotEmpty
                 ? defaultAccounts.first
                 : accounts.first;
           }
@@ -128,13 +153,15 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         if (categories.isNotEmpty) {
           final selectedCategoryStillExists =
               selectedCategory != null &&
-                  categories.any(
-                    (category) =>
-                        category.id == selectedCategory!.id,
-                  );
+              categories.any((category) => category.id == selectedCategory!.id);
 
           if (!selectedCategoryStillExists) {
-            selectedCategory = categories.first;
+            selectedCategory = transaction != null
+                ? categories.firstWhere(
+                    (category) => category.id == transaction.categoryId,
+                    orElse: () => categories.first,
+                  )
+                : categories.first;
           }
         } else {
           selectedCategory = null;
@@ -156,10 +183,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         isLoading = false;
       });
 
-      _showMessage(
-        'Unable to load accounts and categories.',
-        isError: true,
-      );
+      _showMessage('Unable to load accounts and categories.', isError: true);
     }
   }
 
@@ -174,15 +198,17 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     });
 
     try {
-      final loadedCategories =
-    await firestoreService.getCategoriesByType(selectedType);
+      final loadedCategories = await firestoreService.getCategoriesByType(
+        selectedType,
+      );
 
       if (!mounted) return;
 
       setState(() {
         categories = loadedCategories;
-        selectedCategory =
-            loadedCategories.isNotEmpty ? loadedCategories.first : null;
+        selectedCategory = loadedCategories.isNotEmpty
+            ? loadedCategories.first
+            : null;
         isLoading = false;
       });
 
@@ -200,46 +226,32 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         isLoading = false;
       });
 
-      _showMessage(
-        'Unable to load $newType categories.',
-        isError: true,
-      );
+      _showMessage('Unable to load $newType categories.', isError: true);
     }
   }
 
   Future<void> saveTransaction() async {
     if (isSaving) return;
 
-    final amountText =
-        amountController.text.trim().replaceAll(',', '');
+    final amountText = amountController.text.trim().replaceAll(',', '');
     final amount = double.tryParse(amountText);
 
     if (amountText.isEmpty || amount == null || amount <= 0) {
-      _showMessage(
-        'Please enter a valid amount.',
-        isError: true,
-      );
+      _showMessage('Please enter a valid amount.', isError: true);
       return;
     }
 
     if (selectedCategory == null) {
-      _showMessage(
-        'Please select a category.',
-        isError: true,
-      );
+      _showMessage('Please select a category.', isError: true);
       return;
     }
 
     if (selectedAccount == null) {
-      _showMessage(
-        'Please select an account.',
-        isError: true,
-      );
+      _showMessage('Please select an account.', isError: true);
       return;
     }
 
-    if (selectedCategory!.id == null ||
-        selectedAccount!.id == null) {
+    if (selectedCategory!.id == null || selectedAccount!.id == null) {
       _showMessage(
         'The selected category or account is invalid.',
         isError: true,
@@ -271,7 +283,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         createdAt: now.millisecondsSinceEpoch,
       );
 
-     await firestoreService.addTransaction(transaction);
+      if (widget.editTransaction == null) {
+        await firestoreService.addTransaction(transaction);
+      } else {
+        await firestoreService.updateTransaction(
+          transaction.copyWith(id: widget.editTransaction!.id),
+        );
+      }
 
       if (!mounted) return;
 
@@ -286,10 +304,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         isSaving = false;
       });
 
-      _showMessage(
-        'Unable to save the transaction.',
-        isError: true,
-      );
+      _showMessage('Unable to save the transaction.', isError: true);
     }
   }
 
@@ -340,13 +355,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     });
   }
 
-  Future<void> _showCategoryModal(
-    BuildContext context,
-  ) async {
+  Future<void> _showCategoryModal(BuildContext context) async {
     try {
-      debugPrint(
-        'Opening category modal for type: $selectedType',
-      );
+      debugPrint('Opening category modal for type: $selectedType');
 
       final result = await showCategorySelectionModal(
         context,
@@ -360,9 +371,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         final createdCategory = await Navigator.push<CategoryModel>(
           context,
           MaterialPageRoute(
-            builder: (_) => CreateCategoryPage(
-              transactionType: selectedType,
-            ),
+            builder: (_) => CreateCategoryPage(transactionType: selectedType),
           ),
         );
 
@@ -386,10 +395,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
       if (!mounted) return;
 
-      _showMessage(
-        'Unable to open the category selector.',
-        isError: true,
-      );
+      _showMessage('Unable to open the category selector.', isError: true);
     }
   }
 
@@ -401,19 +407,12 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       backgroundColor: _Dark.bg,
       showDragHandle: false,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(26),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       builder: (bottomSheetContext) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              12,
-              20,
-              24,
-            ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -502,10 +501,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                   color: accentColor.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  icon,
-                  color: accentColor,
-                ),
+                child: Icon(icon, color: accentColor),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -543,15 +539,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   }
 
   Future<void> _takeReceiptPhoto() async {
-    await _scanReceipt(
-      () => receiptScannerService.scanFromCamera(),
-    );
+    await _scanReceipt(() => receiptScannerService.scanFromCamera());
   }
 
   Future<void> _chooseReceiptImage() async {
-    await _scanReceipt(
-      () => receiptScannerService.scanFromGallery(),
-    );
+    await _scanReceipt(() => receiptScannerService.scanFromGallery());
   }
 
   Future<void> _scanReceipt(
@@ -570,19 +562,14 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
       _applyReceiptResult(result);
 
-      _showMessage(
-        'Receipt scanned. Review the details before saving.',
-      );
+      _showMessage('Receipt scanned. Review the details before saving.');
     } catch (error, stackTrace) {
       debugPrint('Receipt scanning error: $error');
       debugPrint('$stackTrace');
 
       if (!mounted) return;
 
-      _showMessage(
-        'Could not scan the receipt.',
-        isError: true,
-      );
+      _showMessage('Could not scan the receipt.', isError: true);
     } finally {
       if (mounted) {
         setState(() {
@@ -595,8 +582,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   void _applyReceiptResult(ReceiptScanResult result) {
     setState(() {
       if (result.amount != null) {
-        amountController.text =
-            result.amount!.toStringAsFixed(2);
+        amountController.text = result.amount!.toStringAsFixed(2);
       }
 
       if (result.date != null) {
@@ -608,21 +594,16 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       }
 
       if (result.category != null) {
-        selectedCategory =
-            _findMatchingCategory(result.category!);
+        selectedCategory = _findMatchingCategory(result.category!);
       }
     });
   }
 
-  CategoryModel? _findMatchingCategory(
-    String suggestedCategory,
-  ) {
-    final String normalizedSuggestion =
-        suggestedCategory.trim().toLowerCase();
+  CategoryModel? _findMatchingCategory(String suggestedCategory) {
+    final String normalizedSuggestion = suggestedCategory.trim().toLowerCase();
 
     for (final CategoryModel category in categories) {
-      if (category.name.trim().toLowerCase() ==
-          normalizedSuggestion) {
+      if (category.name.trim().toLowerCase() == normalizedSuggestion) {
         return category;
       }
     }
@@ -630,10 +611,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     return selectedCategory;
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
@@ -653,12 +631,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
     final accentColor = isIncome ? _Dark.success : _Dark.error;
 
-    final parsedAmount = double.tryParse(
-          amountController.text.trim().replaceAll(',', ''),
-        ) ??
-        0;
+    final parsedAmount =
+        double.tryParse(amountController.text.trim().replaceAll(',', '')) ?? 0;
 
-    final canSave = parsedAmount > 0 &&
+    final canSave =
+        parsedAmount > 0 &&
         selectedAccount != null &&
         selectedCategory != null &&
         !isSaving;
@@ -666,8 +643,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     return Scaffold(
       backgroundColor: _Dark.bg,
       appBar: AppBar(
-        title: const Text(
-          'Add Transaction',
+        title: Text(
+          widget.editTransaction == null
+              ? 'Add Transaction'
+              : 'Edit Transaction',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             color: _Dark.textPrimary,
@@ -679,20 +658,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         centerTitle: true,
       ),
       body: isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: accentColor,
-              ),
-            )
+          ? Center(child: CircularProgressIndicator(color: accentColor))
           : SingleChildScrollView(
-              keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                10,
-                20,
-                28,
-              ),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -733,12 +702,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 220),
                     width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(
-                      20,
-                      24,
-                      20,
-                      20,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
                     decoration: BoxDecoration(
                       color: accentColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(24),
@@ -751,8 +715,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                         Text(
                           'TOTAL AMOUNT',
                           style: TextStyle(
-                            color:
-                                accentColor.withValues(alpha: 0.85),
+                            color: accentColor.withValues(alpha: 0.85),
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.3,
@@ -760,10 +723,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                         ),
                         const SizedBox(height: 10),
                         Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
-                          crossAxisAlignment:
-                              CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Text(
                               'Rs ',
@@ -794,9 +755,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                 decoration: InputDecoration(
                                   hintText: '0.00',
                                   hintStyle: TextStyle(
-                                    color: accentColor.withValues(
-                                      alpha: 0.3,
-                                    ),
+                                    color: accentColor.withValues(alpha: 0.3),
                                     fontSize: 46,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -818,17 +777,14 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               foregroundColor: _Dark.textPrimary,
                               backgroundColor: _Dark.card,
                               side: BorderSide(
-                                color: accentColor.withValues(
-                                  alpha: 0.4,
-                                ),
+                                color: accentColor.withValues(alpha: 0.4),
                               ),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 20,
                                 vertical: 11,
                               ),
                               shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(24),
                               ),
                             ),
                             icon: isScanningReceipt
@@ -881,11 +837,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: _Dark.card,
-                                  borderRadius:
-                                      BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: _Dark.divider,
-                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: _Dark.divider),
                                 ),
                                 child: Text(
                                   'No $selectedType categories',
@@ -901,28 +854,23 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                   padding: EdgeInsets.zero,
                                   itemCount: _displayCategories.length,
                                   itemBuilder: (context, index) {
-                                    final category =
-                                        _displayCategories[index];
+                                    final category = _displayCategories[index];
 
                                     final isSelected =
-                                        selectedCategory?.id ==
-                                            category.id;
+                                        selectedCategory?.id == category.id;
 
                                     return GestureDetector(
                                       onTap: () {
                                         setState(() {
-                                          selectedCategory =
-                                              category;
+                                          selectedCategory = category;
                                         });
                                       },
                                       child: Container(
                                         width: 86,
-                                        margin:
-                                            const EdgeInsets.only(
+                                        margin: const EdgeInsets.only(
                                           right: 10,
                                         ),
-                                        padding:
-                                            const EdgeInsets.symmetric(
+                                        padding: const EdgeInsets.symmetric(
                                           horizontal: 8,
                                           vertical: 10,
                                         ),
@@ -932,16 +880,14 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                                   alpha: 0.14,
                                                 )
                                               : _Dark.card,
-                                          borderRadius:
-                                              BorderRadius.circular(
+                                          borderRadius: BorderRadius.circular(
                                             14,
                                           ),
                                           border: Border.all(
                                             color: isSelected
                                                 ? accentColor
                                                 : _Dark.divider,
-                                            width:
-                                                isSelected ? 1.6 : 1,
+                                            width: isSelected ? 1.6 : 1,
                                           ),
                                         ),
                                         child: Column(
@@ -960,15 +906,12 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                             const SizedBox(height: 8),
                                             Text(
                                               category.name,
-                                              textAlign:
-                                                  TextAlign.center,
+                                              textAlign: TextAlign.center,
                                               maxLines: 2,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
+                                              overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                fontWeight:
-                                                    FontWeight.w600,
+                                                fontWeight: FontWeight.w600,
                                                 color: isSelected
                                                     ? accentColor
                                                     : _Dark.textPrimary,
@@ -983,8 +926,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               ),
                       ),
                       GestureDetector(
-                        onTap: () =>
-                            _showCategoryModal(context),
+                        onTap: () => _showCategoryModal(context),
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           child: const Icon(
@@ -1028,8 +970,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
                   // Account heading
                   Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         'Select Account',
@@ -1048,18 +989,14 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             context,
                             MaterialPageRoute(
                               builder: (_) =>
-                                  const AccountsPage(
-                                openCreate: true,
-                              ),
+                                  const AccountsPage(openCreate: true),
                             ),
                           );
 
                           await loadData();
                         },
                         icon: const Icon(Icons.add),
-                        label: const Text(
-                          'Add new account',
-                        ),
+                        label: const Text('Add new account'),
                       ),
                     ],
                   ),
@@ -1073,9 +1010,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                       decoration: BoxDecoration(
                         color: _Dark.card,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _Dark.divider,
-                        ),
+                        border: Border.all(color: _Dark.divider),
                       ),
                       child: const Text(
                         'No accounts are available. Add an account to continue.',
@@ -1087,8 +1022,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: accounts.map((account) {
-                          final isSelected =
-                              selectedAccount?.id == account.id;
+                          final isSelected = selectedAccount?.id == account.id;
 
                           return GestureDetector(
                             onTap: () {
@@ -1097,17 +1031,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               });
                             },
                             child: Container(
-                              margin:
-                                  const EdgeInsets.only(right: 12),
+                              margin: const EdgeInsets.only(right: 12),
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? accentColor.withValues(
-                                        alpha: 0.14,
-                                      )
+                                    ? accentColor.withValues(alpha: 0.14)
                                     : _Dark.card,
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: isSelected
                                       ? accentColor
@@ -1116,8 +1046,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                 ),
                               ),
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     account.name,
@@ -1153,17 +1082,14 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed:
-                          canSave ? saveTransaction : null,
+                      onPressed: canSave ? saveTransaction : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: accentColor,
                         foregroundColor: _Dark.bg,
                         disabledBackgroundColor: _Dark.card,
-                        disabledForegroundColor:
-                            _Dark.textSecondary,
+                        disabledForegroundColor: _Dark.textSecondary,
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: isSaving
@@ -1205,9 +1131,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected
-              ? selectedColor
-              : Colors.transparent,
+          color: isSelected ? selectedColor : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Center(
@@ -1217,9 +1141,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               Icon(
                 icon,
                 size: 18,
-                color: isSelected
-                    ? _Dark.bg
-                    : _Dark.textSecondary,
+                color: isSelected ? _Dark.bg : _Dark.textSecondary,
               ),
               const SizedBox(width: 7),
               Text(
@@ -1227,9 +1149,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: isSelected
-                      ? _Dark.bg
-                      : _Dark.textSecondary,
+                  color: isSelected ? _Dark.bg : _Dark.textSecondary,
                 ),
               ),
             ],
@@ -1257,17 +1177,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             decoration: BoxDecoration(
               color: _Dark.card,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _Dark.divider,
-              ),
+              border: Border.all(color: _Dark.divider),
             ),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  color: _Dark.accent,
-                  size: 20,
-                ),
+                Icon(icon, color: _Dark.accent, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(

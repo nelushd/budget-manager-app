@@ -19,9 +19,9 @@ import '../loan/loans_list_page.dart';
 import '../recurring/recurring_list_page.dart';
 import '../transaction/add_transaction_page.dart';
 import '../transaction/transfer_page.dart';
+import '../transaction/transaction_details_page.dart';
 import '../transactions_page.dart';
 import '../profile_page.dart';
-
 
 class _Dark {
   _Dark._();
@@ -83,7 +83,8 @@ class _HomePageState extends State<HomePage> {
         .fold(0.0, (sum, account) => sum + account.balance);
   }
 
-  PeriodWindow get _monthWindow => PeriodCalculator.windowFor('monthly', DateTime.now());
+  PeriodWindow get _monthWindow =>
+      PeriodCalculator.windowFor('monthly', DateTime.now());
 
   List<ActivityEntry> get _entriesThisMonth {
     final window = _monthWindow;
@@ -164,10 +165,7 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: _Dark.bg,
-      drawer: SidebarDrawer(
-        userName: displayName,
-        userEmail: displayEmail,
-      ),
+      drawer: SidebarDrawer(userName: displayName, userEmail: displayEmail),
       appBar: AppBar(
         backgroundColor: _Dark.bg,
         elevation: 0,
@@ -188,9 +186,7 @@ class _HomePageState extends State<HomePage> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const ProfilePage(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const ProfilePage()),
                 );
               },
               child: CircleAvatar(
@@ -259,17 +255,15 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: _Dark.accent,
         elevation: 6,
         onPressed: () => _showQuickActionsSheet(context),
-        child: const Icon(
-          Icons.add,
-          color: Color(0xFF0B0F14),
-        ),
+        child: const Icon(Icons.add, color: Color(0xFF0B0F14)),
       ),
     );
   }
 
   Widget _netCashFlowCard() {
     final window = _monthWindow;
-    final rangeLabel = '${DateFormat('MMM d, yyyy').format(window.start)} - '
+    final rangeLabel =
+        '${DateFormat('MMM d, yyyy').format(window.start)} - '
         '${DateFormat('MMM d, yyyy').format(window.end)}';
     final netIncome = _monthlyIncome - _monthlyExpense;
 
@@ -371,7 +365,10 @@ class _HomePageState extends State<HomePage> {
             children: [
               Text(
                 subLabel,
-                style: const TextStyle(color: _Dark.textSecondary, fontSize: 11),
+                style: const TextStyle(
+                  color: _Dark.textSecondary,
+                  fontSize: 11,
+                ),
               ),
               Text(
                 'Rs. ${NumberFormat('#,##0.00').format(subAmount)}',
@@ -456,7 +453,8 @@ class _HomePageState extends State<HomePage> {
               scrollDirection: Axis.horizontal,
               itemCount: _accounts.length,
               separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (context, index) => _accountMiniCard(_accounts[index]),
+              itemBuilder: (context, index) =>
+                  _accountMiniCard(_accounts[index]),
             ),
           ),
       ],
@@ -482,7 +480,9 @@ class _HomePageState extends State<HomePage> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              account.type == 'credit_card' ? Icons.credit_card : Icons.account_balance_wallet,
+              account.type == 'credit_card'
+                  ? Icons.credit_card
+                  : Icons.account_balance_wallet,
               color: _Dark.accent,
               size: 16,
             ),
@@ -557,8 +557,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _dayGroup(DateTime day, List<ActivityEntry> entries) {
-    final dayIn = entries.where((e) => e.isInflow).fold(0.0, (sum, e) => sum + e.amount);
-    final dayOut = entries.where((e) => !e.isInflow).fold(0.0, (sum, e) => sum + e.amount);
+    final dayIn = entries
+        .where((e) => e.isInflow)
+        .fold(0.0, (sum, e) => sum + e.amount);
+    final dayOut = entries
+        .where((e) => !e.isInflow)
+        .fold(0.0, (sum, e) => sum + e.amount);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
@@ -629,42 +633,69 @@ class _HomePageState extends State<HomePage> {
   Widget _entryTile(ActivityEntry entry) {
     final color = entry.isInflow ? AppColors.success : AppColors.error;
 
-    return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(entry.icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: _Dark.textPrimary,
+    return InkWell(
+      onTap: entry.transaction == null
+          ? null
+          : () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TransactionDetailsPage(
+                    transaction: entry.transaction!,
+                    categoryName: entry.title,
+                    accountName: entry.accountName,
                   ),
                 ),
-                if (entry.subtitle.isNotEmpty)
-                  Text(entry.subtitle, style: const TextStyle(color: _Dark.textSecondary, fontSize: 12)),
-              ],
+              );
+              _loadData();
+            },
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(entry.icon, color: color, size: 20),
             ),
-          ),
-          Text(
-            '${entry.isInflow ? '+' : '-'} ${_formatAmount(entry.amount)}',
-            style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 13),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: _Dark.textPrimary,
+                    ),
+                  ),
+                  if (entry.subtitle.isNotEmpty)
+                    Text(
+                      entry.subtitle,
+                      style: const TextStyle(
+                        color: _Dark.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Text(
+              '${entry.isInflow ? '+' : '-'} ${_formatAmount(entry.amount)}',
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -890,21 +921,47 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  leading: const Icon(Icons.north_east_rounded, color: Color(0xFFEA580C)),
-                  title: const Text('Lendings', style: TextStyle(color: _Dark.textPrimary)),
-                  subtitle: const Text('Money you lent to others', style: TextStyle(color: _Dark.textSecondary)),
+                  leading: const Icon(
+                    Icons.north_east_rounded,
+                    color: Color(0xFFEA580C),
+                  ),
+                  title: const Text(
+                    'Lendings',
+                    style: TextStyle(color: _Dark.textPrimary),
+                  ),
+                  subtitle: const Text(
+                    'Money you lent to others',
+                    style: TextStyle(color: _Dark.textSecondary),
+                  ),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const LendingsListPage()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LendingsListPage(),
+                      ),
+                    );
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.account_balance_outlined, color: Color(0xFFEA580C)),
-                  title: const Text('Loans', style: TextStyle(color: _Dark.textPrimary)),
-                  subtitle: const Text('Money you owe', style: TextStyle(color: _Dark.textSecondary)),
+                  leading: const Icon(
+                    Icons.account_balance_outlined,
+                    color: Color(0xFFEA580C),
+                  ),
+                  title: const Text(
+                    'Loans',
+                    style: TextStyle(color: _Dark.textPrimary),
+                  ),
+                  subtitle: const Text(
+                    'Money you owe',
+                    style: TextStyle(color: _Dark.textSecondary),
+                  ),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const LoansListPage()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoansListPage()),
+                    );
                   },
                 ),
               ],
@@ -938,11 +995,7 @@ class _HomePageState extends State<HomePage> {
                 color: color.withValues(alpha: 0.18),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 28,
-              ),
+              child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(height: 10),
             Text(
@@ -974,17 +1027,11 @@ class _HomePageState extends State<HomePage> {
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: color.withValues(alpha: 0.3),
-          ),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
-            Icon(
-              icon,
-              color: color,
-              size: 32,
-            ),
+            Icon(icon, color: color, size: 32),
             const SizedBox(height: 8),
             Text(
               title,
@@ -998,10 +1045,7 @@ class _HomePageState extends State<HomePage> {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _Dark.textSecondary,
-                fontSize: 11,
-              ),
+              style: const TextStyle(color: _Dark.textSecondary, fontSize: 11),
             ),
           ],
         ),
@@ -1009,4 +1053,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
