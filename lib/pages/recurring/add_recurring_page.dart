@@ -249,6 +249,7 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                   DropdownButtonFormField<String>(
                     initialValue: frequency,
                     style: const TextStyle(color: FinanceDark.textPrimary),
+                    dropdownColor: FinanceDark.card,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: FinanceDark.card,
@@ -259,7 +260,10 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                       ),
                     ),
                     items: _selectableFrequencies
-                        .map((f) => DropdownMenuItem(value: f, child: Text(frequencyLabel(f))))
+                        .map((f) => DropdownMenuItem(
+                              value: f,
+                              child: Text(frequencyLabel(f), style: const TextStyle(color: FinanceDark.textPrimary)),
+                            ))
                         .toList(),
                     onChanged: (value) {
                       if (value != null) setState(() => frequency = value);
@@ -271,6 +275,7 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                     DropdownButtonFormField<int>(
                       initialValue: dayOfMonth,
                       style: const TextStyle(color: FinanceDark.textPrimary),
+                      dropdownColor: FinanceDark.card,
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: FinanceDark.card,
@@ -281,7 +286,10 @@ class _AddRecurringPageState extends State<AddRecurringPage> {
                         ),
                       ),
                       items: List.generate(31, (i) => i + 1)
-                          .map((d) => DropdownMenuItem(value: d, child: Text('$d')))
+                          .map((d) => DropdownMenuItem(
+                                value: d,
+                                child: Text('$d', style: const TextStyle(color: FinanceDark.textPrimary)),
+                              ))
                           .toList(),
                       onChanged: (value) {
                         if (value != null) setState(() => dayOfMonth = value);
