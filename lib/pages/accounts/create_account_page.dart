@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../../models/account_model.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/finance/calculator_keypad.dart';
 import '../../widgets/finance/dark_finance_widgets.dart';
 
-/// Opens account creation as a bottom sheet — scrollable and sized to its
-/// content instead of a full page push. Returns the created account, or
-/// null if dismissed without saving. Regular accounts use one shared account
-/// type and icon; credit cards have their own dedicated creation flow.
 Future<AccountModel?> showCreateAccountSheet(
   BuildContext context,
 ) {

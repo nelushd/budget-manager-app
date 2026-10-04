@@ -2,7 +2,6 @@ import '../models/category_model.dart';
 import '../models/recurring_expense_model.dart';
 import '../models/transaction_model.dart';
 
-
 const int minDaysForProjection = 5;
 
 
@@ -19,10 +18,6 @@ const int concentrationMinTransactions = 2;
 
 // RULE: PROJECTED TO GO OVER — START
 
-/// Straight-line extrapolation of [spent] to the end of the period. Returns
-/// [spent] unchanged when the period is already over or the inputs are
-/// unusable, so a caller can never get a projection below what is already
-/// spent.
 double projectedSpend(double spent, int daysElapsed, int daysInPeriod) {
   if (daysElapsed <= 0 || daysInPeriod <= 0 || daysElapsed >= daysInPeriod) {
     return spent;
@@ -30,18 +25,10 @@ double projectedSpend(double spent, int daysElapsed, int daysInPeriod) {
   return spent / daysElapsed * daysInPeriod;
 }
 
-/// `((projected - budget) / budget) * 100`. Only meaningful once
-/// [isProjectedOverBudget] is true.
 double projectedOverBudgetPercent(double budget, double projected) {
   return ((projected - budget) / budget) * 100;
 }
 
-/// True when spending is still inside the budget *today* but on pace to pass
-/// it by the end of the period, by a margin worth mentioning.
-///
-/// Deliberately requires `spent <= budget`: once actual spending has already
-/// gone over, the existing "Above Budget" rule owns that category and this one
-/// stays quiet rather than saying the same thing twice.
 bool isProjectedOverBudget({
   required double budget,
   required double spent,
@@ -77,22 +64,11 @@ String buildProjectionText({
 
 // RULE: SCHEDULED CHARGES (RECURRING SHORTFALL) — START
 
-/// What is left of [budget] after [spent]. Never negative: a category that has
-/// already gone over has nothing left, not a negative allowance.
 double remainingBudget(double budget, double spent) {
   final remaining = budget - spent;
   return remaining > 0 ? remaining : 0;
 }
 
-/// Sum of the next charge of each active recurring expense in [categoryId]
-/// falling due between [todayDate] and [periodEndDate], inclusive.
-///
-/// Only the *next* occurrence of each expense is counted — a weekly or daily
-/// expense is not expanded across the rest of the month. That deliberately
-/// under-counts: if even the single next charge already exceeds what is left,
-/// the shortfall is certain rather than estimated.
-///
-/// Dates are 'YYYY-MM-DD', which compares correctly as plain strings.
 double upcomingRecurringForCategory({
   required List<RecurringExpenseModel> recurringExpenses,
   required String categoryId,
@@ -114,8 +90,6 @@ double upcomingRecurringForCategory({
   return total;
 }
 
-/// True when charges the user has already committed to exceed the budget they
-/// have left — an overspend that is scheduled, not merely likely.
 bool isRecurringShortfall({
   required double budget,
   required double spent,
@@ -144,13 +118,11 @@ String buildRecurringShortfallText({
 
 // RULE: LARGE PURCHASES (CONCENTRATED PURCHASE) — START
 
-/// [amount] as a share of [budget], guarded against an unset budget.
 double shareOfBudget(double amount, double budget) {
   if (budget <= 0) return 0;
   return amount / budget;
 }
 
-/// Largest single expense amount in [transactions], or 0 when there are none.
 double largestTransactionAmount(List<TransactionModel> transactions) {
   double largest = 0;
   for (final transaction in transactions) {
@@ -159,9 +131,6 @@ double largestTransactionAmount(List<TransactionModel> transactions) {
   return largest;
 }
 
-/// True when one transaction consumed a large enough slice of the budget to be
-/// worth naming on its own, and there were other transactions for it to stand
-/// out against.
 bool isConcentratedPurchase({
   required double largestAmount,
   required double budget,
@@ -193,8 +162,7 @@ String buildConcentrationText({
 
 enum SpendingInsightKind { projectedOver, recurringShortfall, largePurchase }
 
-/// One rendered insight. [magnitude] only orders cards within a section; it is
-/// never shown to the user.
+
 class SpendingInsight {
   final SpendingInsightKind kind;
   final CategoryModel? category;

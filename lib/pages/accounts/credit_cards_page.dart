@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../../models/account_model.dart';
 import '../../services/firestore_service.dart';
 import 'create_credit_card_page.dart';
@@ -11,11 +10,6 @@ const _accent = Color(0xFF2DD4A7);
 const _textPrimary = Colors.white;
 const _textSecondary = Color(0xFF9CA3AF);
 
-/// Same account data as [AccountsPage], filtered to type: 'credit_card' —
-/// a dedicated fast path for adding/viewing credit cards, reached from the
-/// Home quick-actions sheet. Cards created here are ordinary accounts, so
-/// they show up in every existing account picker (Add Transaction,
-/// Transfer, SMS Parser) without any changes there.
 class CreditCardsPage extends StatefulWidget {
   const CreditCardsPage({super.key});
 

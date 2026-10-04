@@ -9,10 +9,6 @@ class DailyBarPoint {
 
   const DailyBarPoint({required this.day, required this.income, required this.expense});
 }
-
-/// Paired daily income/expense bars across a date window — hand-rolled to
-/// match the app's existing convention of small custom-painted charts
-/// rather than pulling in a charting package for one shape.
 class DailyBarChart extends StatelessWidget {
   final List<DailyBarPoint> points;
   final double height;

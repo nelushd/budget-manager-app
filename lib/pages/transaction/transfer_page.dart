@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../../models/account_model.dart';
 import '../../models/transfer_model.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/finance/calculator_keypad.dart';
-
 
 class _Dark {
   _Dark._();

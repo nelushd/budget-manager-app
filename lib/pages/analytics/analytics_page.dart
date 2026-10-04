@@ -11,9 +11,6 @@ import '../../widgets/analytics/daily_bar_chart.dart';
 import '../../widgets/analytics/donut_chart.dart';
 import '../../widgets/finance/finance_widgets.dart';
 
-/// Dark palette for this page only — same as home_page.dart's, kept local
-/// rather than shared so the reskin stays scoped to the pages it's been
-/// applied to instead of silently changing other screens.
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);
@@ -24,9 +21,6 @@ class _Dark {
   static const Color divider = Color(0xFF232C38);
 }
 
-/// Local stand-in for [AppCard] with dark colors, so this page doesn't have
-/// to change the shared (still-light) widget used across the rest of the
-/// app.
 Widget _darkCard({required Widget child, EdgeInsets padding = const EdgeInsets.all(16)}) {
   return Container(
     padding: padding,

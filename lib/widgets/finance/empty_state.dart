@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'primary_action_button.dart';
 
 class FinanceEmptyState extends StatelessWidget {

@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 class DonutSlice {
@@ -8,11 +7,6 @@ class DonutSlice {
 
   const DonutSlice({required this.color, required this.value});
 }
-
-/// A simple hand-rolled donut chart — one arc per slice, proportional to
-/// its share of the total. Matches the app's existing convention of
-/// hand-rolled circular widgets (see CircularProgressRing) instead of
-/// pulling in a charting package for a single chart shape.
 class DonutChart extends StatelessWidget {
   final List<DonutSlice> slices;
   final double size;

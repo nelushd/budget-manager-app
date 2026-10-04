@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../models/activity_entry.dart';
 import '../services/firestore_service.dart';
 import '../utils/activity_builder.dart';

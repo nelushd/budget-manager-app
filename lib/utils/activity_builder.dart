@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../models/account_model.dart';
 import '../models/activity_entry.dart';
 import '../models/category_model.dart';

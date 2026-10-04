@@ -3,7 +3,6 @@ import 'package:budget_manager_app/models/category_model.dart';
 import 'package:budget_manager_app/services/firestore_service.dart';
 import 'package:budget_manager_app/utils/category_icon.dart';
 
-/// Dark palette matching Home/Analytics/Transactions/Add Transaction/SMS Parser.
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);

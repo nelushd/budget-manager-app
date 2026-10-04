@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../constants/colors.dart';
 
 enum ActionButtonVariant { primary, secondary, ghost, danger }

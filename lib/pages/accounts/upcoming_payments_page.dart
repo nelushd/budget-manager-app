@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../../models/account_model.dart';
 
 const _bg = Color(0xFF0B0F14);
@@ -9,9 +8,6 @@ const _accent = Color(0xFF2DD4A7);
 const _textPrimary = Colors.white;
 const _textSecondary = Color(0xFF9CA3AF);
 
-/// This card's single upcoming due-date reminder, computed from its
-/// [AccountModel.dueDay] — not a general reminders/notifications system,
-/// just a plain-language answer to "when do I next need to pay this".
 class UpcomingPaymentsPage extends StatelessWidget {
   final AccountModel card;
 

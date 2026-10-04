@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../../models/account_model.dart';
 import '../../services/firestore_service.dart';
 import 'create_account_page.dart';
 
-/// Dark palette matching Home/Analytics/Budget/Credit Cards — this page
-/// used to be the one plain-white holdout in the account flow, which made
-/// every card in it look flat next to the rest of the app.
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-
 import '../../services/auth_service.dart';
 
-/// Dark palette matching Home/Analytics/Transactions/Add Transaction/Login.
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);

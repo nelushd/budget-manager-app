@@ -1003,11 +1003,6 @@ class FirestoreService {
 
     await _budgets.doc(budgetId).delete();
   }
-
-  /// Sums real `transactions` (type == expense) for [categoryId] between
-  /// [start] and [end] (inclusive, 'YYYY-MM-DD'). Budgets never store a
-  /// spent amount — it's always computed from actual transaction history,
-  /// so it stays correct as transactions are added, edited, or deleted.
   Future<double> getSpentForCategoryInRange(
     String categoryId,
     String start,
@@ -1029,10 +1024,6 @@ class FirestoreService {
     return total;
   }
 
-  /// The individual expenses behind [getSpentForCategoryInRange] — same
-  /// filters, same composite index, but the documents rather than their sum.
-  /// Used by the insights page, which needs the largest single transaction in
-  /// a category as well as its total.
   Future<List<TransactionModel>> getTransactionsForCategoryInRange(
     String categoryId,
     String start,
@@ -1199,7 +1190,7 @@ class FirestoreService {
   }
 
   // ============================================================
-  // LENDINGS (money lent out, expected back)
+  // LENDINGS 
   // ============================================================
 
   Future<String> addLending(LendingModel lending) async {
@@ -1210,7 +1201,6 @@ class FirestoreService {
     final documentRef = _lendings.doc();
 
     if (lending.accountId != null && lending.accountId!.isNotEmpty) {
-      // A *new* lending: money leaves the selected account.
       final accountRef = _accounts.doc(lending.accountId);
       await _firestore.runTransaction((transaction) async {
         final accountSnapshot = await transaction.get(accountRef);
@@ -1266,9 +1256,6 @@ class FirestoreService {
     await _lendings.doc(lendingId).delete();
   }
 
-  /// Records a repayment received against a lending, bumps its
-  /// receivedAmount, and — if the lending has a linked account — credits
-  /// that account, all in one Firestore transaction.
   Future<void> addLendingRepayment(LendingRepaymentModel repayment) async {
     if (repayment.accountId.trim().isEmpty) {
       throw ArgumentError('Repayment account is required.');
@@ -1320,7 +1307,7 @@ class FirestoreService {
   }
 
   // ============================================================
-  // LOANS (money borrowed, owed back) — bank or personal
+  // LOANS 
   // ============================================================
 
   Future<String> addLoan(LoanModel loan) async {
@@ -1331,7 +1318,6 @@ class FirestoreService {
     final documentRef = _loans.doc();
 
     if (loan.accountId != null && loan.accountId!.isNotEmpty) {
-      // A *new* loan: borrowed money arrives into the selected account.
       final accountRef = _accounts.doc(loan.accountId);
       await _firestore.runTransaction((transaction) async {
         final accountSnapshot = await transaction.get(accountRef);
@@ -1387,9 +1373,6 @@ class FirestoreService {
     await _loans.doc(loanId).delete();
   }
 
-  /// Records a payment made against a loan, bumps its paidAmount, advances
-  /// a bank loan's nextDueDate by one month, and — if the loan has a
-  /// linked account — debits that account, all in one transaction.
   Future<void> addLoanPayment(LoanPaymentModel payment) async {
     if (payment.accountId.trim().isEmpty) {
       throw ArgumentError('Payment account is required.');
@@ -1456,13 +1439,9 @@ class FirestoreService {
   }
 
   // ============================================================
-  // TRANSFERS (move money between two of the user's own accounts)
+  // TRANSFERS 
   // ============================================================
 
-  /// Moves [transfer.amount] (plus any [transfer.fee]) out of the source
-  /// account and [transfer.amount] into the destination account, and logs
-  /// the transfer, all in one Firestore transaction — mirrors how
-  /// [addTransaction] keeps account balances and history in sync.
   Future<String> addTransfer(TransferModel transfer) async {
     if (transfer.fromAccountId.trim().isEmpty ||
         transfer.toAccountId.trim().isEmpty) {

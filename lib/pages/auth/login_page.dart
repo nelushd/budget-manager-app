@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-
 import '../../services/auth_service.dart';
 import 'signup_page.dart';
 
-/// Dark palette matching Home/Analytics/Transactions/Add Transaction/Profile.
 class _Dark {
   _Dark._();
   static const Color bg = Color(0xFF0B0F14);

@@ -133,7 +133,6 @@ String _extractCurrency(String text) {
   final code = match?.group(1)?.toUpperCase().replaceAll('.', '');
   if (code == null) return 'LKR';
   if (code.startsWith('RS')) return 'LKR';
-  if (code == r'$') return 'USD';
   return code;
 }
 

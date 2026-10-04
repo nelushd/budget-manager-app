@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../constants/colors.dart';
 import '../../models/account_model.dart';
 import '../../models/lending_model.dart';

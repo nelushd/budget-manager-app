@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Finance theme: Teal & Emerald.
-/// Extends the app's existing teal seed (0xFF0F766E) and the existing
-/// income/expense colors already used in add_transaction_page.dart
-/// (0xFF22C55E / 0xFFEF4444), so new screens feel consistent with the app.
+ the app.
 class AppColors {
   // Primary (teal)
   static const Color primary = Color(0xFF0F766E);

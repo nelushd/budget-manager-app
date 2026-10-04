@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../../models/account_model.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/finance/calculator_keypad.dart';
@@ -8,10 +7,6 @@ import '../../widgets/finance/day_of_month_picker.dart';
 
 const _dark = _CreditCardDark();
 
-/// A short quick-pick of card networks, offered when creating a card so the
-/// name doesn't have to be typed out by hand. Selecting one just fills the
-/// (still-editable) name field — any other card name is one tap of typing
-/// away, not blocked.
 const List<String> kCardNetworks = ['Visa', 'Mastercard', 'Amex'];
 
 class _CreditCardDark {
@@ -24,8 +19,6 @@ class _CreditCardDark {
   Color get error => const Color(0xFFEF4444);
 }
 
-/// Opens the "Create Credit Card" / "Edit Card" sheet. Returns the
-/// saved account, or null if dismissed without saving.
 Future<AccountModel?> showCreateCreditCardSheet(
   BuildContext context, {
   AccountModel? existing,

@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import '../../models/budget_model.dart';
 import '../../models/category_model.dart';
 import '../../services/firestore_service.dart';
@@ -11,9 +10,8 @@ import '../../widgets/finance/dark_finance_widgets.dart';
 import '../categories/categories_page.dart';
 import '../categories/create_category_page.dart';
 
-/// A budget always covers exactly one category and always resets monthly —
-/// so there's nothing to name and nothing to allocate between categories,
-/// just "which category" and "how much per month".
+/// A budget always covers exactly one category and always resets monthly 
+
 class CreateBudgetPage extends StatefulWidget {
   final BudgetModel? existing;
 

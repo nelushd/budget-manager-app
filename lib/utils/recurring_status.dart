@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import 'period_calculator.dart';
 
-
 String computeRecurringStatus({
   required String nextDueDate,
   required bool paidToday,

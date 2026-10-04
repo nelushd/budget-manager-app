@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../pages/analytics/analytics_page.dart';
 import '../pages/budget/budgets_list_page.dart';
 import '../pages/home/home_page.dart';

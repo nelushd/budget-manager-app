@@ -23,10 +23,6 @@ class _Dark {
   static const Color error = Color(0xFFF87171);
 }
 
-/// Paste-a-bank-SMS entry point. Parses amount/date/time/type from the
-/// pasted text, then lets the user review and edit every field
-/// (category and account are never auto-filled — always picked here)
-/// before saving directly as a real transaction.
 class SmsParserPage extends StatefulWidget {
   const SmsParserPage({super.key});
 
@@ -407,9 +403,6 @@ class _SmsParserPageState extends State<SmsParserPage> {
                     ),
                   ] else ...[
                     const SizedBox(height: 22),
-
-                    // Income / Expense toggle — editable in case the
-                    // credit/debit detection guessed wrong.
                     Container(
                       height: 54,
                       padding: const EdgeInsets.all(5),

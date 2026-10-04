@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-
 import 'calculator_keypad.dart';
 
 
-/// Categories, SMS, ...).
+
 class FinanceDark {
   FinanceDark._();
   static const Color bg = Color(0xFF0B0F14);

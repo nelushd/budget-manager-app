@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../constants/colors.dart';
 import '../../utils/calculator.dart';
 
@@ -31,7 +30,6 @@ Future<void> showCalculatorKeypad(
     builder: (_) => _CalculatorKeypadSheet(controller: controller, currency: currency, dark: dark),
   );
 
-  // Whatever way the sheet closed, leave the field holding a clean number.
   final finalValue = evaluateExpression(controller.text);
   controller.text = finalValue != null ? formatAmount(finalValue) : '';
 }
