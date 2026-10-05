@@ -53,16 +53,21 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
         FirestoreService.instance.getCategoriesByType('expense'),
         FirestoreService.instance.getCategoriesByType('income'),
         FirestoreService.instance.getAccounts(),
-        if (id != null)
-          FirestoreService.instance.getCreditCardPayments(id)
-        else
-          Future.value(<CreditCardPaymentModel>[]),
       ]);
       if (!mounted) return;
       final categories = [...results[1] as List<CategoryModel>, ...results[2] as List<CategoryModel>];
+      var payments = <CreditCardPaymentModel>[];
+      if (id != null) {
+        try {
+          payments = await FirestoreService.instance.getCreditCardPayments(id);
+        } catch (error, stackTrace) {
+          debugPrint('Error loading credit card payment history: $error');
+          debugPrint('$stackTrace');
+        }
+      }
       setState(() {
         _allTransactions = results[0] as List<TransactionModel>;
-        _payments = results[4] as List<CreditCardPaymentModel>;
+        _payments = payments;
         _categoriesById = {
           for (final c in categories)
             if (c.id != null) c.id!: c,

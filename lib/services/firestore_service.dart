@@ -241,10 +241,10 @@ class FirestoreService {
   Future<List<CreditCardPaymentModel>> getCreditCardPayments(String cardId) async {
     final snapshot = await _creditCardPayments
         .where('userId', isEqualTo: _currentUserId)
-        .where('cardId', isEqualTo: cardId)
         .get();
     final payments = snapshot.docs
         .map((document) => CreditCardPaymentModel.fromFirestore(document.id, document.data()))
+      .where((payment) => payment.cardId == cardId)
         .toList();
     payments.sort((first, second) => second.createdAt.compareTo(first.createdAt));
     return payments;
