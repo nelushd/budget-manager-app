@@ -13,7 +13,7 @@ service cloud.firestore {
 
     function isUserScopedCollection(collection) {
       return collection in [
-        'accounts', 'budgets', 'categories',
+        'accounts', 'budgets', 'categories', 'creditCardPayments',
         'lendings', 'loans', 'recurringExpenses', 'transactions', 'transfers'
       ];
     }

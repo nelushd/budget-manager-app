@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/account_model.dart';
 import '../../models/category_model.dart';
+import '../../models/credit_card_payment_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/category_icon.dart';
@@ -30,6 +31,8 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
   late AccountModel _card;
   bool _isLoading = true;
   List<TransactionModel> _allTransactions = [];
+  List<CreditCardPaymentModel> _payments = [];
+  List<AccountModel> _accounts = [];
   Map<String, CategoryModel> _categoriesById = {};
   late DateTime _selectedMonth;
 
@@ -49,15 +52,24 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
         if (id != null) FirestoreService.instance.getTransactionsByAccount(id) else Future.value(<TransactionModel>[]),
         FirestoreService.instance.getCategoriesByType('expense'),
         FirestoreService.instance.getCategoriesByType('income'),
+        FirestoreService.instance.getAccounts(),
+        if (id != null)
+          FirestoreService.instance.getCreditCardPayments(id)
+        else
+          Future.value(<CreditCardPaymentModel>[]),
       ]);
       if (!mounted) return;
       final categories = [...results[1] as List<CategoryModel>, ...results[2] as List<CategoryModel>];
       setState(() {
         _allTransactions = results[0] as List<TransactionModel>;
+        _payments = results[4] as List<CreditCardPaymentModel>;
         _categoriesById = {
           for (final c in categories)
             if (c.id != null) c.id!: c,
         };
+        _accounts = (results[3] as List<AccountModel>)
+            .where((account) => account.id != _card.id)
+            .toList();
         _isLoading = false;
       });
     } catch (error, stackTrace) {
@@ -79,6 +91,20 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
       final date = DateTime.tryParse(t.date);
       return date != null && date.year == _selectedMonth.year && date.month == _selectedMonth.month;
     }).toList();
+  }
+
+  List<CreditCardPaymentModel> get _monthPayments {
+    return _payments.where((payment) {
+      final date = DateTime.tryParse(payment.date);
+      return date != null && date.year == _selectedMonth.year && date.month == _selectedMonth.month;
+    }).toList();
+  }
+
+  String _accountName(String accountId) {
+    for (final account in _accounts) {
+      if (account.id == accountId) return account.name;
+    }
+    return 'Account';
   }
 
   DateTime _dayInMonth(int year, int month, int day) {
@@ -184,6 +210,8 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
           ? _card.balance.toStringAsFixed(0)
           : _card.balance.toString(),
     );
+    AccountModel? selectedAccount = _accounts.where((account) => account.isDefault).firstOrNull;
+    selectedAccount ??= _accounts.isNotEmpty ? _accounts.first : null;
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -191,52 +219,98 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
       backgroundColor: _cardBg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Pay Now', style: TextStyle(color: _textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(color: const Color(0xFF1B2430), borderRadius: BorderRadius.circular(14)),
-                child: TextField(
-                  controller: controller,
-                  readOnly: true,
-                  showCursor: true,
-                  onTap: () => showCalculatorKeypad(context, controller: controller, dark: true),
-                  style: const TextStyle(color: _textPrimary),
-                  decoration: const InputDecoration(
-                    icon: Text('Rs', style: TextStyle(color: _textSecondary)),
-                    hintText: 'Payment Amount',
-                    hintStyle: TextStyle(color: _textSecondary),
-                    border: InputBorder.none,
-                  ),
-                ),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
               ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(sheetContext, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _accent,
-                    foregroundColor: _bg,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Pay Now', style: TextStyle(color: _textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(color: const Color(0xFF1B2430), borderRadius: BorderRadius.circular(14)),
+                    child: TextField(
+                      controller: controller,
+                      readOnly: true,
+                      showCursor: true,
+                      onTap: () async {
+                        await showCalculatorKeypad(context, controller: controller, dark: true);
+                        setSheetState(() {});
+                      },
+                      style: const TextStyle(color: _textPrimary),
+                      decoration: const InputDecoration(
+                        icon: Text('Rs', style: TextStyle(color: _textSecondary)),
+                        hintText: 'Payment Amount',
+                        hintStyle: TextStyle(color: _textSecondary),
+                        border: InputBorder.none,
+                      ),
+                    ),
                   ),
-                  child: const Text('Confirm Payment', style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
+                  const SizedBox(height: 18),
+                  const Text('Pay from account', style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 104,
+                    child: _accounts.isEmpty
+                        ? const Center(child: Text('No accounts available', style: TextStyle(color: _textSecondary)))
+                        : ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _accounts.length,
+                            separatorBuilder: (context, index) => const SizedBox(width: 10),
+                            itemBuilder: (_, index) {
+                              final account = _accounts[index];
+                              final isSelected = selectedAccount?.id == account.id;
+                              return GestureDetector(
+                                onTap: () => setSheetState(() => selectedAccount = account),
+                                child: Container(
+                                  width: 152,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? _accent.withValues(alpha: 0.14) : _cardBg,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: isSelected ? _accent : _divider, width: isSelected ? 2 : 1),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(Icons.account_balance_wallet_outlined, color: isSelected ? _accent : _textSecondary, size: 20),
+                                      const Spacer(),
+                                      Text(account.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _textPrimary, fontSize: 13)),
+                                      const SizedBox(height: 3),
+                                      Text('Rs ${account.balance.toStringAsFixed(2)}', style: const TextStyle(color: _textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: selectedAccount == null ? null : () => Navigator.pop(sheetContext, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _accent,
+                        foregroundColor: _bg,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Confirm Payment', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -244,12 +318,23 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
     if (confirmed != true || !mounted) return;
 
     final payment = double.tryParse(controller.text.trim()) ?? 0;
-    if (payment <= 0) return;
+    final accountId = selectedAccount?.id;
+    if (payment <= 0 || accountId == null || _card.id == null) return;
 
-    final updated = _card.copyWith(balance: (_card.balance - payment).clamp(0, double.infinity).toDouble());
-    await FirestoreService.instance.updateAccount(updated);
-    if (!mounted) return;
-    setState(() => _card = updated);
+    try {
+      await FirestoreService.instance.makeCreditCardPayment(
+        cardId: _card.id!,
+        accountId: accountId,
+        amount: payment,
+      );
+      if (!mounted) return;
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))),
+      );
+    }
   }
 
   @override
@@ -371,24 +456,46 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
                           style: const TextStyle(color: _textSecondary, fontSize: 12),
                         ),
                         const SizedBox(height: 20),
-                        if (_monthTransactions.isEmpty)
+                        if (_monthTransactions.isEmpty && _monthPayments.isEmpty)
                           _emptyTransactions()
-                        else
-                          Container(
-                            decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(16)),
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < _monthTransactions.length; i++)
-                                  Column(
-                                    children: [
-                                      _transactionTile(_monthTransactions[i]),
-                                      if (i != _monthTransactions.length - 1)
-                                        const Divider(height: 1, color: _divider),
-                                    ],
-                                  ),
-                              ],
+                        else ...[
+                          if (_monthTransactions.isNotEmpty)
+                            Container(
+                              decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(16)),
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < _monthTransactions.length; i++)
+                                    Column(
+                                      children: [
+                                        _transactionTile(_monthTransactions[i]),
+                                        if (i != _monthTransactions.length - 1)
+                                          const Divider(height: 1, color: _divider),
+                                      ],
+                                    ),
+                                ],
+                              ),
                             ),
-                          ),
+                          if (_monthPayments.isNotEmpty) ...[
+                            const SizedBox(height: 20),
+                            const Text('Payments', style: TextStyle(color: _textPrimary, fontSize: 16, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 10),
+                            Container(
+                              decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(16)),
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < _monthPayments.length; i++)
+                                    Column(
+                                      children: [
+                                        _paymentTile(_monthPayments[i]),
+                                        if (i != _monthPayments.length - 1)
+                                          const Divider(height: 1, color: _divider),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ],
                     ),
                   ),
@@ -459,6 +566,37 @@ class _CreditCardDetailPageState extends State<CreditCardDetailPage> {
           Text(
             '${isInflow ? '+' : '-'} Rs ${NumberFormat('#,##0.00').format(transaction.amount)}',
             style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _paymentTile(CreditCardPaymentModel payment) {
+    return Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: const Color(0xFF22C55E).withValues(alpha: 0.16), borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.payments_outlined, color: Color(0xFF22C55E), size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Credit card payment', style: TextStyle(color: _textPrimary, fontWeight: FontWeight.w700, fontSize: 14)),
+                const SizedBox(height: 3),
+                Text('Paid from ${_accountName(payment.accountId)}', style: const TextStyle(color: _textSecondary, fontSize: 12)),
+              ],
+            ),
+          ),
+          Text(
+            '- Rs ${NumberFormat('#,##0.00').format(payment.amount)}',
+            style: const TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.w800, fontSize: 13),
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/account_model.dart';
 import '../models/category_model.dart';
+import '../models/credit_card_payment_model.dart';
 import '../models/transaction_model.dart';
 import '../models/budget_model.dart';
 import '../models/recurring_expense_model.dart';
@@ -32,6 +33,10 @@ class FirestoreService {
 
   CollectionReference<Map<String, dynamic>> get _transactions {
     return _firestore.collection('transactions');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _creditCardPayments {
+    return _firestore.collection('creditCardPayments');
   }
 
   CollectionReference<Map<String, dynamic>> get _budgets {
@@ -172,6 +177,77 @@ class FirestoreService {
     }
 
     await _accounts.doc(accountId).update(account.toFirestore());
+  }
+
+  Future<void> makeCreditCardPayment({
+    required String cardId,
+    required String accountId,
+    required double amount,
+  }) async {
+    if (cardId.trim().isEmpty || accountId.trim().isEmpty) {
+      throw ArgumentError('Card and payment account are required.');
+    }
+    if (amount <= 0) {
+      throw ArgumentError('Payment amount must be greater than zero.');
+    }
+    if (cardId == accountId) {
+      throw ArgumentError('A credit card cannot pay itself.');
+    }
+
+    final cardRef = _accounts.doc(cardId);
+    final accountRef = _accounts.doc(accountId);
+    final paymentRef = _creditCardPayments.doc();
+    final now = DateTime.now();
+    await _firestore.runTransaction((transaction) async {
+      final cardSnapshot = await transaction.get(cardRef);
+      final accountSnapshot = await transaction.get(accountRef);
+      if (!cardSnapshot.exists || cardSnapshot.data() == null) {
+        throw StateError('The credit card does not exist.');
+      }
+      if (!accountSnapshot.exists || accountSnapshot.data() == null) {
+        throw StateError('The selected payment account does not exist.');
+      }
+
+      final cardData = cardSnapshot.data()!;
+      final accountData = accountSnapshot.data()!;
+      if (cardData['userId']?.toString() != _currentUserId ||
+          accountData['userId']?.toString() != _currentUserId) {
+        throw StateError('The selected account is not yours.');
+      }
+      final cardBalance = (cardData['balance'] as num?)?.toDouble() ?? 0;
+      final accountBalance = (accountData['balance'] as num?)?.toDouble() ?? 0;
+      if (amount > cardBalance) {
+        throw StateError('Payment cannot exceed the credit card balance.');
+      }
+      if (amount > accountBalance) {
+        throw StateError('The selected account does not have enough balance.');
+      }
+
+      final payment = CreditCardPaymentModel(
+        userId: _currentUserId ?? '',
+        cardId: cardId,
+        accountId: accountId,
+        amount: amount,
+        date: PeriodCalculator.formatDate(now),
+        time: '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+        createdAt: now.millisecondsSinceEpoch,
+      );
+      transaction.set(paymentRef, payment.toFirestore());
+      transaction.update(cardRef, {'balance': cardBalance - amount});
+      transaction.update(accountRef, {'balance': accountBalance - amount});
+    });
+  }
+
+  Future<List<CreditCardPaymentModel>> getCreditCardPayments(String cardId) async {
+    final snapshot = await _creditCardPayments
+        .where('userId', isEqualTo: _currentUserId)
+        .where('cardId', isEqualTo: cardId)
+        .get();
+    final payments = snapshot.docs
+        .map((document) => CreditCardPaymentModel.fromFirestore(document.id, document.data()))
+        .toList();
+    payments.sort((first, second) => second.createdAt.compareTo(first.createdAt));
+    return payments;
   }
 
   Future<void> deleteAccount(String accountId) async {
